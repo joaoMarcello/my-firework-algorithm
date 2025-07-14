@@ -4,7 +4,7 @@ from scipy.stats import norm
 from tqdm import trange
 
 class FWA:
-    def __init__(self, func, dim, bounds):
+    def __init__(self, func, dim, bounds, selection_method='distance'):
         self.func = func
         self.dim = dim
         self.bounds = bounds
@@ -12,6 +12,8 @@ class FWA:
         self.best_solution = None
         self.best_value = None
         self.history = []
+        self.selection_method = selection_method
+        self.n = None
 
     def load_prob(self, n=5, m=50, a=0.04, b=0.8, A_hat=40, m_hat=5, max_iter=100):
         self.n = n
@@ -32,10 +34,12 @@ class FWA:
         self.best_value = self.func(self.best_solution)
         self.history.append(self.best_value)
 
-    def run(self):
+    def run(self, verbose=False):
         self.init_fireworks()
-        for _ in trange(self.max_iter, desc="FWA"):
+        for i in trange(self.max_iter, desc="FWA"):
             self.iter()
+            if verbose:
+                print(f"Iter {i}: best = {self.best_value}")
 
     def iter(self):
         sparks = []
@@ -43,10 +47,12 @@ class FWA:
         ymax, ymin = max(f_values), min(f_values)
         total_diff = sum(ymax - f for f in f_values) + 1e-12
 
+        amplitude_denom = sum(f - ymin for f in f_values) + 1e-12
+
         for i, fw in enumerate(self.fireworks):
             s_i = self.m * (ymax - f_values[i] + 1e-12) / total_diff
             s_i = round(np.clip(s_i, self.a * self.m, self.b * self.m))
-            A_i = self.A_hat * (f_values[i] - ymin + 1e-12) / (sum(f - ymin for f in f_values) + 1e-12)
+            A_i = self.A_hat * (f_values[i] - ymin + 1e-12) / amplitude_denom
             sparks += self.explode(fw, s_i, A_i)
 
         sparks += self.gaussian_explode()
@@ -55,7 +61,7 @@ class FWA:
 
         best_val = self.func(best)
 
-        if best_val < self.best_value:
+        if self.best_value is None or best_val < self.best_value:
             self.best_solution = best
             self.best_value = best_val
 
@@ -88,12 +94,6 @@ class FWA:
             results.append(spark)
         return results
 
-    # def clip(self, val, bound):
-    #     min_b, max_b = bound
-    #     if val < min_b or val > max_b:
-    #         return min_b + abs(val) % (max_b - min_b)
-    #     return val
-
     def clip(self, val, bound):
         # Implementação reflexiva baseada no paper original (reflete no limite)
         min_b, max_b = bound
@@ -102,19 +102,87 @@ class FWA:
                 val = min_b + (min_b - val)
             elif val > max_b:
                 val = max_b - (val - max_b)
-        return val
-
+        # return val
+        return np.clip(val, min_b, max_b)
 
     def select(self, candidates):
+        if self.selection_method == 'distance':
+            return self.__select_distance(candidates)
+        elif self.selection_method == 'roulette':
+            return self.__select_roulette(candidates)
+        elif self.selection_method == 'tournament':
+            return self.__select_tournament(candidates)
+        else:
+            return self.__select_random(candidates)
+        
+    def __select_distance(self, candidates):
         f_vals = [self.func(x) for x in candidates]
-        best = candidates[np.argmin(f_vals)]
-        distances = np.array([sum(np.linalg.norm(x - y) for y in candidates) for x in candidates])
-        probs = distances / distances.sum()
+        best_idx = np.argmin(f_vals)
+        best = candidates[best_idx]
 
-        # selected = [best] + list(np.random.choice(candidates, self.n - 1, p=probs, replace=False))
+        distances = np.array([
+            sum(np.linalg.norm(x - y) for y in candidates)
+            for x in candidates
+        ])
+        probs = distances / distances.sum()
+        indices = np.arange(len(candidates))
+
+        # evitar duplicar o melhor
+        chosen = [i for i in np.random.choice(indices, self.n - 1, p=probs, replace=False) if i != best_idx]
+        while len(chosen) < self.n - 1:
+            i = np.random.choice(indices, p=probs)
+            if i != best_idx and i not in chosen:
+                chosen.append(i)
+
+        selected = [best] + [candidates[i] for i in chosen]
+        return selected
+    
+    def __select_roulette(self, candidates):
+        f_vals = [self.func(x) for x in candidates]
+        best_idx = np.argmin(f_vals)
+        best = candidates[best_idx]
+
+        fitness_inv = np.max(f_vals) - np.array(f_vals) + 1e-12
+        probs = fitness_inv / fitness_inv.sum()
+        indices = np.arange(len(candidates))
+
+        # evitar duplicar o melhor
+        chosen = [i for i in np.random.choice(indices, self.n - 1, p=probs, replace=False) if i != best_idx]
+        while len(chosen) < self.n - 1:
+            i = np.random.choice(indices, p=probs)
+            if i != best_idx and i not in chosen:
+                chosen.append(i)
+
+        selected = [best] + [candidates[i] for i in chosen]
+        return selected
+    
+    def __select_tournament(self, candidates):
+        f_vals = [self.func(x) for x in candidates]
+        best_idx = np.argmin(f_vals)
+        best = candidates[best_idx]
+
+        selected = [best]
+        candidates_indices = list(range(len(candidates)))
+        while len(selected) < self.n:
+            i1, i2 = random.sample(candidates_indices, 2)
+            winner = candidates[i1] if f_vals[i1] < f_vals[i2] else candidates[i2]
+            if winner not in selected:
+                selected.append(winner)
+        return selected
+    
+    def __select_random(self, candidates):
+        f_vals = [self.func(x) for x in candidates]
+        best_idx = np.argmin(f_vals)
+        best = candidates[best_idx]
 
         indices = np.arange(len(candidates))
-        chosen = np.random.choice(indices, self.n - 1, p=probs, replace=False)
-        selected = [best] + [candidates[i] for i in chosen]
 
+        # evitar duplicar o melhor
+        chosen = [i for i in np.random.choice(indices, self.n - 1, replace=False) if i != best_idx]
+        while len(chosen) < self.n - 1:
+            i = np.random.choice(indices)
+            if i != best_idx and i not in chosen:
+                chosen.append(i)
+
+        selected = [best] + [candidates[i] for i in chosen]
         return selected
