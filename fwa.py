@@ -1,5 +1,7 @@
-import numpy as np
+import json
 import random
+
+import numpy as np
 from scipy.stats import norm
 from tqdm import trange
 
@@ -191,3 +193,53 @@ class FWA:
 
         selected = [best] + [candidates[i] for i in chosen]
         return selected
+    
+    def save_to_disc(self, path: str = "fwa_result.json"):
+        # Salva a melhor solução, valor, histórico e parâmetros do problema em JSON.
+        if self.best_solution is None:
+            raise ValueError("Nenhuma solução foi encontrada ainda.")
+        
+        data = {
+            "best_solution": self.best_solution.tolist(),
+            "best_value": self.best_value,
+            "history": self.history,
+            "parameters": {
+                "n": self.n,
+                "m": self.m,
+                "a": self.a,
+                "b": self.b,
+                "A_hat": self.A_hat,
+                "m_hat": self.m_hat,
+                "max_iter": self.max_iter,
+                "dim": self.dim,
+                "bounds": [list(b) for b in self.bounds]
+            }
+        }
+
+        with open(path, "w") as f:
+            json.dump(data, f, indent=4)
+        
+        print(f"Resultados salvos em: {path}")
+
+
+    def load_best(self, path: str = "fwa_result.json"):
+        # Carrega melhor solução, valor, histórico e parâmetros de um arquivo JSON.
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        self.best_solution = np.array(data["best_solution"])
+        self.best_value = data["best_value"]
+        self.history = data["history"]
+
+        params = data.get("parameters", {})
+        self.n = params.get("n", None)
+        self.m = params.get("m", None)
+        self.a = params.get("a", None)
+        self.b = params.get("b", None)
+        self.A_hat = params.get("A_hat", None)
+        self.m_hat = params.get("m_hat", None)
+        self.max_iter = params.get("max_iter", None)
+        self.dim = params.get("dim", None)
+        self.bounds = [tuple(b) for b in params.get("bounds", [])]
+
+        print(f"Solução carregada de {path} com valor: {self.best_value}")

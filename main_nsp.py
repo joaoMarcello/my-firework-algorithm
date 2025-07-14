@@ -82,6 +82,7 @@ if __name__ == '__main__':
     fwa = FWA(func=fitness, dim=solution_size, bounds=bounds, seed=SEED)
     fwa.load_prob(n=5, m=50, max_iter=100)
     fwa.run()
+    fwa.save_to_disc(path="fwa_nsp_result.json")
 
     print("Melhor valor encontrado:", fwa.best_value)
 
