@@ -84,4 +84,14 @@ def load_data(xml_path: str ='ORTEC01.xml'):
     print("Pedidos de folga:", shift_off_requests[:2])
     print("Pedidos de turno:", shift_on_requests)
 
-    return shifts, employees, contracts, cover_requirements, shift_off_requests, shift_on_requests, start_date, end_date
+    return {
+        "shifts": shifts,
+        "employees": employees,
+        "contracts": contracts,
+        "cover_requirements": cover_requirements,
+        "shift_off_requests": shift_off_requests,
+        "shift_on_requests": shift_on_requests,
+        "start_date": start_date,
+        "end_date": end_date
+    }
+
