@@ -24,6 +24,16 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "EndTime": shift.findtext("EndTime")
         }
 
+    # Adicionar turno especial para folga ("OFF")
+    # Se o turno "OFF" não estiver nos dados, adicionamos.
+    if "OFF" not in shifts:
+        shifts["OFF"] = {
+            "Label": "OFF",
+            "Name": "Folga",
+            "StartTime": None,
+            "EndTime": None
+        }
+
     # === 2. Funcionários ===
     for emp in root.find("Employees"):
         emp_id = emp.attrib["ID"]
@@ -76,13 +86,13 @@ def load_data(xml_path: str ='ORTEC01.xml'):
     start_date = root.findtext("StartDate")
     end_date = root.findtext("EndDate")
 
-    # === Visualização rápida ===
-    print("Turnos:", shifts)
-    print("Funcionários (3 primeiros):", dict(list(employees.items())[:3]))
-    print("Contrato 36 (regras):", contracts["36"][:2])  # exemplo
-    print("Cobertura Segunda-feira:", cover_requirements["Monday"])
-    print("Pedidos de folga:", shift_off_requests[:2])
-    print("Pedidos de turno:", shift_on_requests)
+    # # === Visualização rápida ===
+    # print("Turnos:", shifts)
+    # print("Funcionários (3 primeiros):", dict(list(employees.items())[:3]))
+    # print("Contrato 36 (regras):", contracts["36"][:2])  # exemplo
+    # print("Cobertura Segunda-feira:", cover_requirements["Monday"])
+    # print("Pedidos de folga:", shift_off_requests[:2])
+    # print("Pedidos de turno:", shift_on_requests)
 
     return {
         "shifts": shifts,
