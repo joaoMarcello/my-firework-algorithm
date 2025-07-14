@@ -10,6 +10,7 @@ class FWA:
         self.bounds = bounds
         self.fireworks = []
         self.best_solution = None
+        self.best_value = None
         self.history = []
 
     def load_prob(self, n=5, m=50, a=0.04, b=0.8, A_hat=40, m_hat=5, max_iter=100):
@@ -28,7 +29,8 @@ class FWA:
             for _ in range(self.n)
         ]
         self.best_solution = min(self.fireworks, key=self.func)
-        self.history.append(self.func(self.best_solution))
+        self.best_value = self.func(self.best_solution)
+        self.history.append(self.best_value)
 
     def run(self):
         self.init_fireworks()
@@ -50,9 +52,14 @@ class FWA:
         sparks += self.gaussian_explode()
         self.fireworks = self.select(sparks + self.fireworks)
         best = min(self.fireworks, key=self.func)
-        if self.func(best) < self.func(self.best_solution):
+
+        best_val = self.func(best)
+
+        if best_val < self.best_value:
             self.best_solution = best
-        self.history.append(self.func(self.best_solution))
+            self.best_value = best_val
+
+        self.history.append(self.best_value)
 
     def explode(self, fw, s_i, A_i):
         results = []
@@ -81,11 +88,22 @@ class FWA:
             results.append(spark)
         return results
 
+    # def clip(self, val, bound):
+    #     min_b, max_b = bound
+    #     if val < min_b or val > max_b:
+    #         return min_b + abs(val) % (max_b - min_b)
+    #     return val
+
     def clip(self, val, bound):
+        # Implementação reflexiva baseada no paper original (reflete no limite)
         min_b, max_b = bound
-        if val < min_b or val > max_b:
-            return min_b + abs(val) % (max_b - min_b)
+        while val < min_b or val > max_b:
+            if val < min_b:
+                val = min_b + (min_b - val)
+            elif val > max_b:
+                val = max_b - (val - max_b)
         return val
+
 
     def select(self, candidates):
         f_vals = [self.func(x) for x in candidates]
