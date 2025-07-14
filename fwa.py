@@ -4,7 +4,7 @@ from scipy.stats import norm
 from tqdm import trange
 
 class FWA:
-    def __init__(self, func, dim, bounds, selection_method='distance'):
+    def __init__(self, func, dim, bounds, selection_method='distance', seed=None):
         self.func = func
         self.dim = dim
         self.bounds = bounds
@@ -14,6 +14,10 @@ class FWA:
         self.history = []
         self.selection_method = selection_method
         self.n = None
+
+        if seed is not None:
+            np.random.seed(seed)
+            random.seed(seed)
 
     def load_prob(self, n=5, m=50, a=0.04, b=0.8, A_hat=40, m_hat=5, max_iter=100):
         self.n = n

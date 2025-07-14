@@ -1,10 +1,14 @@
 from datetime import datetime, timedelta
+import random
 
 import numpy as np
 
 from utils import load_data
 from fwa import FWA
 
+SEED = 42
+np.random.seed(SEED)
+random.seed(SEED)
 
 def fitness(solution):
     total_penalty = 0
@@ -75,7 +79,7 @@ if __name__ == '__main__':
     solution_size = n_employees * n_days
     bounds = [(0, n_shift_types - 1)] * solution_size  # cada valor representa um turno possível
 
-    fwa = FWA(func=fitness, dim=solution_size, bounds=bounds)
+    fwa = FWA(func=fitness, dim=solution_size, bounds=bounds, seed=SEED)
     fwa.load_prob(n=5, m=50, max_iter=100)
     fwa.run()
 
