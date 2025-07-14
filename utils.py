@@ -7,14 +7,14 @@ def load_data(xml_path: str ='ORTEC01.xml'):
     root = tree.getroot()
 
     # Dicionários para armazenar dados
-    shifts = {}                     # ID do turno → informações
-    employees = {}                  # ID do funcionário → nome e contrato
-    contracts = defaultdict(list)   # ID do contrato → lista de padrões/regras
-    cover_requirements = defaultdict(dict)  # Dia da semana → turnos → demanda
+    shifts = {}                     # ID do turno -> informações
+    employees = {}                  # ID do funcionário -> nome e contrato
+    contracts = defaultdict(list)   # ID do contrato -> lista de padrões/regras
+    cover_requirements = defaultdict(dict)  # Dia da semana -> turnos -> demanda
     shift_off_requests = []         # Lista de pedidos de folga
     shift_on_requests = []          # Lista de pedidos de turno desejado
 
-    # === 1. Turnos disponíveis ===
+    # Turnos disponíveis
     for shift in root.find("ShiftTypes"):
         shift_id = shift.attrib["ID"]
         shifts[shift_id] = {
@@ -34,7 +34,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "EndTime": None
         }
 
-    # === 2. Funcionários ===
+    # Funcionários
     for emp in root.find("Employees"):
         emp_id = emp.attrib["ID"]
         employees[emp_id] = {
@@ -42,7 +42,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "ContractID": emp.findtext("ContractID")
         }
 
-    # === 3. Contratos e padrões ===
+    # Contratos e padrões
     for contract in root.find("Contracts"):
         contract_id = contract.attrib["ID"]
         rules = []
@@ -56,7 +56,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             rules.append(rule)
         contracts[contract_id] = rules
 
-    # === 4. Requisitos de cobertura por dia da semana ===
+    # Requisitos de cobertura por dia da semana
     for day_cover in root.find("CoverRequirements").findall("DayOfWeekCover"):
         day = day_cover.findtext("Day")
         for cover in day_cover.findall("Cover"):
@@ -64,7 +64,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             preferred = int(cover.findtext("Preferred"))
             cover_requirements[day][shift_id] = preferred
 
-    # === 5. Pedidos de folga (ShiftOff) ===
+    # Pedidos de folga (ShiftOff)
     for req in root.find("ShiftOffRequests").findall("ShiftOff"):
         shift_off_requests.append({
             "EmployeeID": req.findtext("EmployeeID"),
@@ -73,7 +73,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "Weight": int(req.attrib["weight"])
         })
 
-    # === 6. Pedidos de turno desejado (ShiftOn) ===
+    # Pedidos de turno desejado (ShiftOn)
     for req in root.find("ShiftOnRequests").findall("ShiftOn"):
         shift_on_requests.append({
             "EmployeeID": req.findtext("EmployeeID"),
@@ -82,11 +82,11 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "Weight": int(req.attrib["weight"])
         })
 
-    # === 7. Datas do período ===
+    # Datas do período
     start_date = root.findtext("StartDate")
     end_date = root.findtext("EndDate")
 
-    # # === Visualização rápida ===
+    # # visualização
     # print("Turnos:", shifts)
     # print("Funcionários (3 primeiros):", dict(list(employees.items())[:3]))
     # print("Contrato 36 (regras):", contracts["36"][:2])  # exemplo
