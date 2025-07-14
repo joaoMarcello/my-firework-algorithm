@@ -1,0 +1,50 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+env/
+venv/
+
+# Editor-specific settings
+.idea/
+.vscode/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Logs and other files
+*.log
+*.out
+*.err
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+*.env
+*.python-version
+
+# Pytorch models
+*.tar
+*.ptl
+*.pt
+
+# Image files
+*.jpg
+*.jpeg
+*.png
+
+#compressed/serialized files
+*.gz
+*.pkl
+*.xz
+
+# onnx
+*.onnx
+*.tflite
+*.tf
