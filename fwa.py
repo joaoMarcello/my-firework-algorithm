@@ -94,6 +94,7 @@ class FWA:
             results.append(spark)
         return results
 
+
     def clip(self, val, bound):
         # Implementação reflexiva baseada no paper original (reflete no limite)
         min_b, max_b = bound
@@ -102,7 +103,7 @@ class FWA:
                 val = min_b + (min_b - val)
             elif val > max_b:
                 val = max_b - (val - max_b)
-        # return val
+        # Correção final para garantir limite exato em casos de imprecisão numérica
         return np.clip(val, min_b, max_b)
 
     def select(self, candidates):
