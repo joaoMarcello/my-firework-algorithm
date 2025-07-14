@@ -1,24 +1,25 @@
 import numpy as np
 import random
 from scipy.stats import norm
+from tqdm import trange
 
 class FWA:
     def __init__(self, func, dim, bounds):
-        self.func = func            # função objetivo
-        self.dim = dim              # número de dimensões
-        self.bounds = bounds        # limites de busca [(min, max), ..., (min, max)]
-        self.fireworks = []         # população atual
-        self.best_solution = None   # melhor solução atual
-        self.history = []           # histórico de melhores
+        self.func = func
+        self.dim = dim
+        self.bounds = bounds
+        self.fireworks = []
+        self.best_solution = None
+        self.history = []
 
     def load_prob(self, n=5, m=50, a=0.04, b=0.8, A_hat=40, m_hat=5, max_iter=100):
-        self.n = n                # número de fogos de artifício
-        self.m = m                # número total de faíscas
-        self.a = a                # limite inferior relativo de faíscas
-        self.b = b                # limite superior relativo de faíscas
-        self.A_hat = A_hat        # amplitude máxima da explosão
-        self.m_hat = m_hat        # número de faíscas gaussianas
-        self.max_iter = max_iter  # iterações máximas
+        self.n = n
+        self.m = m
+        self.a = a
+        self.b = b
+        self.A_hat = A_hat
+        self.m_hat = m_hat
+        self.max_iter = max_iter
 
     def init_fireworks(self):
         self.fireworks = [
@@ -31,7 +32,7 @@ class FWA:
 
     def run(self):
         self.init_fireworks()
-        for _ in range(self.max_iter):
+        for _ in trange(self.max_iter, desc="FWA"):
             self.iter()
 
     def iter(self):
@@ -91,5 +92,11 @@ class FWA:
         best = candidates[np.argmin(f_vals)]
         distances = np.array([sum(np.linalg.norm(x - y) for y in candidates) for x in candidates])
         probs = distances / distances.sum()
-        selected = [best] + list(np.random.choice(candidates, self.n - 1, p=probs, replace=False))
+
+        # selected = [best] + list(np.random.choice(candidates, self.n - 1, p=probs, replace=False))
+
+        indices = np.arange(len(candidates))
+        chosen = np.random.choice(indices, self.n - 1, p=probs, replace=False)
+        selected = [best] + [candidates[i] for i in chosen]
+
         return selected
