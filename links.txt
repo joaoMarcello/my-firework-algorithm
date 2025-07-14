@@ -1,0 +1,6 @@
+- Explicação do XML do DATASET
+https://www.staffrostersolutions.com/support/autoroster-problem-data.php
+
+
+- Benchmarks
+https://www.schedulingbenchmarks.org/nrp/
