@@ -78,7 +78,7 @@ if __name__ == '__main__':
     parser.add_argument('--fwa_b', type=float, default=0.8)
 
     # limite máximo para a amplitude dos fogos
-    parser.add_argument('--fwa_a_hat', type=int, default=40)
+    parser.add_argument('--fwa_a_hat', type=float, default=40)
 
     # número de faíscas gaussianas
     parser.add_argument('--fwa_m_hat', type=int, default=5)
