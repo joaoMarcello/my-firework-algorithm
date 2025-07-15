@@ -1,4 +1,5 @@
 import json
+import os
 import random
 
 import numpy as np
@@ -216,6 +217,11 @@ class FWA:
             }
         }
 
+        # cria o diretório caso não exista
+        dir_path = os.path.dirname(path)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
+
         with open(path, "w") as f:
             json.dump(data, f, indent=4)
         
@@ -240,6 +246,6 @@ class FWA:
         self.m_hat = params.get("m_hat", None)
         self.max_iter = params.get("max_iter", None)
         self.dim = params.get("dim", None)
-        self.bounds = [tuple(b) for b in params.get("bounds", [])]
+        # self.bounds = [tuple(b) for b in params.get("bounds", [])]
 
         print(f"Solução carregada de {path} com valor: {self.best_value}")
