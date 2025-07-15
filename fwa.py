@@ -212,7 +212,7 @@ class FWA:
                 "m_hat": self.m_hat,
                 "max_iter": self.max_iter,
                 "dim": self.dim,
-                "bounds": [list(b) for b in self.bounds]
+                # "bounds": [list(b) for b in self.bounds]
             }
         }
 
