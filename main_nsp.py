@@ -4,8 +4,8 @@ import random
 
 import numpy as np
 
-from utils import load_data
 from fwa import FWA
+from utils import load_data
 
 SEED = 42
 np.random.seed(SEED)
