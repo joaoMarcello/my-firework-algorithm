@@ -2,9 +2,11 @@ import json
 import os
 import random
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import norm
 from tqdm import trange
+
 
 class FWA:
     def __init__(self, func, dim, bounds, selection_method='distance', seed=None):
@@ -249,3 +251,23 @@ class FWA:
         # self.bounds = [tuple(b) for b in params.get("bounds", [])]
 
         print(f"Solução carregada de {path} com valor: {self.best_value}")
+
+
+    def plot_history_from_file(self, json_path):
+
+        self.load_best(path=json_path)
+
+        if not self.history:
+            print("Histórico vazio.")
+            return
+
+        plt.figure(figsize=(12, 5))
+        plt.plot(self.history, label="Fitness")
+        plt.title("Evolução da Função Objetivo (FWA)")
+        plt.xlabel("Iteração")
+        plt.ylabel("Valor da função objetivo")
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
