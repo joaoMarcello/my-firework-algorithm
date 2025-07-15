@@ -1,3 +1,4 @@
+import argparse
 from datetime import datetime, timedelta
 import random
 
@@ -59,7 +60,23 @@ def fitness(solution):
 
 
 if __name__ == '__main__':
-    data = load_data(xml_path='data/ORTEC01.xml')
+    parser = argparse.ArgumentParser(description='Run FWA for Nurse Scheduling Problem.')
+    parser.add_argument('--xml_path', type=str, default='data/ORTEC01.xml')
+    parser.add_argument('--save_file', type=str, default='fwa_nsp_result')
+
+    # params for FWA
+    parser.add_argument('--fwa_n', type=int, default=5)
+    parser.add_argument('--fwa_m', type=int, default=50)
+    parser.add_argument('--fwa_a', type=float, default=0.04)
+    parser.add_argument('--fwa_b', type=float, default=0.8)
+    parser.add_argument('--fwa_a_hat', type=int, default=40)
+    parser.add_argument('--fwa_m_hat', type=int, default=5)
+    parser.add_argument('--fwa_max_iter', type=int, default=100)
+    parser.add_argument('--fwa_select_mode', type=str, default='distance')
+
+    args = parser.parse_args()
+
+    data = load_data(xml_path=args.xml_path)
     shifts = data['shifts']
     employees = data['employees']
     contracts = data['contracts']
@@ -79,10 +96,22 @@ if __name__ == '__main__':
     solution_size = n_employees * n_days
     bounds = [(0, n_shift_types - 1)] * solution_size  # cada valor representa um turno possível
 
-    fwa = FWA(func=fitness, dim=solution_size, bounds=bounds, seed=SEED)
-    fwa.load_prob(n=5, m=50, max_iter=100)
+    fwa = FWA(func=fitness, 
+              dim=solution_size, 
+              bounds=bounds, 
+              selection_method=args.fwa_select_mode,
+              seed=SEED)
+
+    fwa.config(n=args.fwa_n, 
+               m=args.fwa_m, 
+               a = args.fwa_a,
+               b = args.fwa_b,
+               A_hat = args.fwa_a_hat,
+               m_hat= args.fwa_m_hat,
+               max_iter=args.fwa_max_iter)
+    
     fwa.run()
-    fwa.save_to_disc(path="fwa_nsp_result.json")
+    fwa.save_to_disc(path=args.save_file + '.json')
 
     print("Melhor valor encontrado:", fwa.best_value)
 
