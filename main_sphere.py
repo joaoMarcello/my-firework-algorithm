@@ -10,6 +10,7 @@ bounds = [(-100, 100)] * dim
 fwa = FWA(func=sphere, dim=dim, bounds=bounds)
 fwa.config(n=5, m=50, max_iter=100)
 fwa.run()
+fwa.save_to_disc(path='fwa_sphere_result.json')
 
 print("Melhor solução:", fwa.best_solution)
 print("Valor:", fwa.func(fwa.best_solution))
