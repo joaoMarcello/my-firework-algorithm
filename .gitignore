@@ -34,10 +34,10 @@ Thumbs.db
 *.ptl
 *.pt
 
-# Image files
-*.jpg
-*.jpeg
-*.png
+# # Image files
+# *.jpg
+# *.jpeg
+# *.png
 
 #compressed/serialized files
 *.gz
