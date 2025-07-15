@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
     print("Melhor valor encontrado:", fwa.best_value)
 
-    fwa.plot_history_from_file(json_path=args.save_file + '.json')
+    fwa.plot_history_from_file(json_path=args.save_file + '.json', save_path=args.save_file + '.png')
 
     # # Decodificando para visualização
     # schedule = np.array(fwa.best_solution, dtype=int).reshape((n_employees, n_days))
