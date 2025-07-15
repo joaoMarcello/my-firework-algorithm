@@ -102,7 +102,7 @@ if __name__ == '__main__':
     shift_id_to_index = {sid: i for i, sid in enumerate(shift_ids)}
 
     solution_size = n_employees * n_days
-    bounds = [(0, n_shift_types - 1)] * solution_size  # cada valor representa um turno possível
+    bounds = [(0 - 0.5, n_shift_types - 1 + 0.5)] * solution_size  # cada valor representa um turno possível
 
     fwa = FWA(func=fitness, 
               dim=solution_size, 
