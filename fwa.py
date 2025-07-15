@@ -5,6 +5,7 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import norm
+from scipy.spatial.distance import cdist
 from tqdm import trange
 
 
@@ -62,9 +63,16 @@ class FWA:
         amplitude_denom = sum(f - ymin for f in f_values) + 1e-12
 
         for i, fw in enumerate(self.fireworks):
+            # cálculo da quant. de faíscas do fogo atual.
+            # fogos com menor fitness geram mais faíscas
             s_i = self.m * (ymax - f_values[i] + 1e-12) / total_diff
             s_i = round(np.clip(s_i, self.a * self.m, self.b * self.m))
+
+            # cálculo da amplitude da explosão. vai ser maior para fogos
+            # com fitness ruins (vão explorar mais) e menor para fogos 
+            # com fitness bons (busca será mais local)
             A_i = self.A_hat * (f_values[i] - ymin + 1e-12) / amplitude_denom
+
             sparks += self.explode(fw, s_i, A_i)
 
         sparks += self.gaussian_explode()
@@ -119,6 +127,8 @@ class FWA:
         return np.clip(val, min_b, max_b)
 
     def select(self, candidates):
+        candidates = np.array(candidates)
+
         if self.selection_method == 'distance':
             return self.__select_distance(candidates)
         elif self.selection_method == 'roulette':
@@ -131,24 +141,33 @@ class FWA:
     def __select_distance(self, candidates):
         f_vals = [self.func(x) for x in candidates]
         best_idx = np.argmin(f_vals)
+        # o melhor candidato sempre será mantido (elitismo)
         best = candidates[best_idx]
 
-        distances = np.array([
-            sum(np.linalg.norm(x - y) for y in candidates)
-            for x in candidates
-        ])
-        probs = distances / distances.sum()
-        indices = np.arange(len(candidates))
+        # distances = np.array([
+        #     sum(np.linalg.norm(x - y) for y in candidates)
+        #     for x in candidates
+        # ])
 
-        # evitar duplicar o melhor
-        chosen = [i for i in np.random.choice(indices, self.n - 1, p=probs, replace=False) if i != best_idx]
-        while len(chosen) < self.n - 1:
-            i = np.random.choice(indices, p=probs)
-            if i != best_idx and i not in chosen:
-                chosen.append(i)
+        # versão mais rápida para o cálculo das distâncias
+        distances = cdist(candidates, candidates).sum(axis=1)
+        probs = distances / distances.sum()
+
+        indices = np.arange(len(candidates))
+        valid_indices = [i for i in indices if i != best_idx]
+        probs_filtered = probs[valid_indices]
+        probs_filtered /= probs_filtered.sum()
+
+        if len(valid_indices) < self.n - 1:
+            # candidatos insuficientes. vamos permitir repetição
+            chosen = np.random.choice(valid_indices, self.n - 1, replace=True)
+        else:
+            chosen = np.random.choice(valid_indices, self.n - 1, p=probs_filtered, replace=False)
 
         selected = [best] + [candidates[i] for i in chosen]
+
         return selected
+
     
     def __select_roulette(self, candidates):
         f_vals = [self.func(x) for x in candidates]
