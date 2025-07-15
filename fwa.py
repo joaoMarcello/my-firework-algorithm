@@ -269,8 +269,9 @@ class FWA:
         plt.grid(True)
         plt.legend()
         plt.tight_layout()
-        plt.show()
 
         if save_path:
-            plt.savefig(save_path)
+            plt.savefig(save_path, dpi=300)
+
+        plt.show()
 
