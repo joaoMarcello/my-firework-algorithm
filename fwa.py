@@ -253,7 +253,7 @@ class FWA:
         print(f"Solução carregada de {path} com valor: {self.best_value}")
 
 
-    def plot_history_from_file(self, json_path):
+    def plot_history_from_file(self, json_path, save_path=None):
 
         self.load_best(path=json_path)
 
@@ -262,7 +262,7 @@ class FWA:
             return
 
         plt.figure(figsize=(12, 5))
-        plt.plot(self.history, label="Fitness")
+        plt.plot(self.history, label=f"Fitness (best: {self.best_value})")
         plt.title("Evolução da Função Objetivo (FWA)")
         plt.xlabel("Iteração")
         plt.ylabel("Valor da função objetivo")
@@ -270,4 +270,7 @@ class FWA:
         plt.legend()
         plt.tight_layout()
         plt.show()
+
+        if save_path:
+            plt.savefig(save_path)
 
