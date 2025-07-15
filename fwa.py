@@ -21,7 +21,7 @@ class FWA:
             np.random.seed(seed)
             random.seed(seed)
 
-    def load_prob(self, n=5, m=50, a=0.04, b=0.8, A_hat=40, m_hat=5, max_iter=100):
+    def config(self, n=5, m=50, a=0.04, b=0.8, A_hat=40, m_hat=5, max_iter=100):
         self.n = n
         self.m = m
         self.a = a

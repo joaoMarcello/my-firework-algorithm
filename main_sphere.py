@@ -8,7 +8,7 @@ dim = 10
 bounds = [(-100, 100)] * dim
 
 fwa = FWA(func=sphere, dim=dim, bounds=bounds)
-fwa.load_prob(n=5, m=50, max_iter=100)
+fwa.config(n=5, m=50, max_iter=100)
 fwa.run()
 
 print("Melhor solução:", fwa.best_solution)
