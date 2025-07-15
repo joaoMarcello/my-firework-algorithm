@@ -43,12 +43,15 @@ class FWA:
         self.best_value = self.func(self.best_solution)
         self.history.append(self.best_value)
 
-    def run(self, verbose=False):
+    def run(self, verbose=False, log_freq=10):
         self.init_fireworks()
-        for i in trange(self.max_iter, desc="FWA"):
+        pbar = trange(self.max_iter, desc="FWA", dynamic_ncols=True)
+        for i in pbar:
             self.iter()
-            if verbose:
+            pbar.set_description(f"FWA {self.best_value:.0f}")
+            if verbose and (i % log_freq == 0 or i == self.max_iter - 1):
                 print(f"Iter {i}: best = {self.best_value}")
+
 
     def iter(self):
         sparks = []
