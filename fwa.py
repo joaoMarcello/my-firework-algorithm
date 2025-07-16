@@ -125,6 +125,7 @@ class FWA:
             # com fitness bons (busca será mais local)
 
             # A_i = self.A_hat * (f_values[i] - ymin + 1e-12) / amplitude_denom
+
             A_dynamic = self.get_dynamic_amplitude()
             A_i = A_dynamic * (f_values[i] - ymin + 1e-12) / amplitude_denom
 
