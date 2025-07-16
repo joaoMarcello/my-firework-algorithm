@@ -80,6 +80,7 @@ def contract_penalty(emp_id, emp_schedule):
 
     return total
 
+
 def check_contractual_patterns_with_matching(schedule, hard_only=False):
     """
     Checa padrões contratuais no agendamento.
@@ -188,41 +189,54 @@ def check_contractual_patterns_with_matching(schedule, hard_only=False):
 
     return total_penalty
 
+def check_weekends_off(schedule):
+    penalty = 0
+    min_weekends_off = 2  # mínimo de fins de semana livres no mês
+
+    for emp_idx in range(n_employees):
+        weekends_off_count = 0
+
+        for day in range(n_days):
+            date = start_date + timedelta(days=day)
+            if date.weekday() == 5:  # sábado
+                if day + 1 < n_days:
+                    shift_sat = shift_ids[schedule[emp_idx, day]]
+                    shift_sun = shift_ids[schedule[emp_idx, day + 1]]
+                    if shift_sat == "OFF" and shift_sun == "OFF":
+                        weekends_off_count += 1
+
+        if weekends_off_count < min_weekends_off:
+            penalty += 1000 * (min_weekends_off - weekends_off_count)
+
+    return penalty
 
 def check_hard_constraints(schedule):
     penalty = 0
 
-    # Exemplo para contar turnos noturnos consecutivos e penalizar se > 3
     max_consecutive_night_shifts = 3
-    night_shift_ids = [sid for sid, info in shifts.items() if info.get("Name", "").lower().find("night") >= 0 or sid.lower() == "night"]  # exemplo heurístico
-    
+    night_shift_ids = [sid for sid, info in shifts.items() if info.get("Name", "").lower().find("night") >= 0 or sid.lower() == "night"]
+
     for emp_idx in range(n_employees):
         consec_nights = 0
         consec_workdays = 0
-        weekends_off = 0  # para contar fins de semana livres
-        night_shift_sequences = 0
 
         for day in range(n_days):
             shift_id = shift_ids[schedule[emp_idx, day]]
             is_night = shift_id in night_shift_ids
             is_off = (shift_id == "OFF")
 
-            # Consecutive night shifts
             if is_night:
                 consec_nights += 1
             else:
                 if consec_nights > max_consecutive_night_shifts:
-                    penalty += 1000  # penalidade pesada
+                    penalty += 1000
                 if consec_nights >= 2:
-                    # Requisito de 42h descanso após 2+ turnos noturnos consecutivos
-                    # Exemplo simplificado: penalize se não tem 2 dias OFF ou equivalente depois
                     if day + 2 <= n_days:
                         next_shifts = [shift_ids[schedule[emp_idx, d]] for d in range(day, min(day+3, n_days))]
                         if any(sid != "OFF" for sid in next_shifts):
                             penalty += 1000
                 consec_nights = 0
 
-            # Consecutive workdays (não off)
             if not is_off:
                 consec_workdays += 1
             else:
@@ -230,26 +244,13 @@ def check_hard_constraints(schedule):
                     penalty += 1000
                 consec_workdays = 0
 
-            # Contagem fins de semana off (simplificação: verificar sábado e domingo)
-            # aqui precisaria de datas reais para verificar quais dias são finais de semana
-            # Assumindo start_date + day é datetime.date:
-            date = start_date + timedelta(days=day)
-            if date.weekday() == 5 or date.weekday() == 6:  # sábado/domingo
-                if is_off:
-                    weekends_off += 1
-
-        # No fim do agendamento, checar sequências finais:
         if consec_nights > max_consecutive_night_shifts:
             penalty += 1000
         if consec_workdays > 6:
             penalty += 1000
 
-        # Regra dos fins de semana off (ex: pelo menos 2 a cada 5 semanas)
-        # Aqui simplificado: 
-        # Você precisaria contar janelas de 5 semanas e checar se em cada janela tem pelo menos 2 finais de semana off
-        # Penalidade se não atender
-
-    # Outras regras (horas, descanso 11h etc) demandam cálculo detalhado e dados adicionais.
+    # Regra dos fins de semana livres (pelo menos 2 no mês)
+    penalty += check_weekends_off(schedule)
 
     return penalty
 
@@ -304,11 +305,14 @@ def fitness(solution):
 
 
     hard_penalty = check_hard_constraints(schedule)
-    hard_contract_penalty = check_contractual_patterns_with_matching(schedule, hard_only=True)
-    soft_contract_penalty = check_contractual_patterns_with_matching(schedule, hard_only=False) - hard_contract_penalty
+    hard_contract_penalty = check_contractual_patterns_with_matching(schedule, hard_only=False)
+    # soft_contract_penalty = check_contractual_patterns_with_matching(schedule, hard_only=False) - hard_contract_penalty
 
+    # hard_penalty = 0
+    # hard_contract_penalty = 0
+    soft_contract_penalty = 0
     if hard_penalty + hard_contract_penalty > 0:
-        return 1e9 + hard_penalty + hard_contract_penalty + total_penalty + soft_contract_penalty
+        return 1e9*0.0 + hard_penalty + hard_contract_penalty + total_penalty + soft_contract_penalty
 
     return total_penalty + soft_contract_penalty
 
