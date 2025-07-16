@@ -13,6 +13,8 @@ def load_data(xml_path: str ='ORTEC01.xml'):
     cover_requirements = defaultdict(dict)  # Dia da semana -> turnos -> demanda
     shift_off_requests = []         # Lista de pedidos de folga
     shift_on_requests = []          # Lista de pedidos de turno desejado
+    shift_groups = {}
+    cover_weights = {}
 
     # Turnos disponíveis
     for shift in root.find("ShiftTypes"):
@@ -21,7 +23,8 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "Label": shift.findtext("Label"),
             "Name": shift.findtext("Name"),
             "StartTime": shift.findtext("StartTime"),
-            "EndTime": shift.findtext("EndTime")
+            "EndTime": shift.findtext("EndTime"),
+            "Color": shift.findtext("Color")
         }
 
     # Adicionar turno especial para folga ("OFF")
@@ -33,6 +36,12 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "StartTime": None,
             "EndTime": None
         }
+
+    # ShiftGroups
+    for group in root.find("ShiftGroups"):
+        group_id = group.attrib["ID"]
+        shift_list = [s.text for s in group.findall("Shift")]
+        shift_groups[group_id] = shift_list
 
     # Funcionários
     for emp in root.find("Employees"):
@@ -48,13 +57,33 @@ def load_data(xml_path: str ='ORTEC01.xml'):
         rules = []
         for match in contract.find("Patterns").findall("Match"):
             rule = {
-                "Max": match.findtext("Max/Count"),
-                "Weight": match.findtext("Max/Weight"),
-                "Label": match.findtext("Max/Label"),
-                "Pattern": [el.tag for el in match.findall("Pattern/*")]
+                "Max": {
+                    "Count": match.findtext("Max/Count"),
+                    "Weight": match.findtext("Max/Weight"),
+                    "WeightFunction": match.find("Max/Weight").attrib.get("function") if match.find("Max/Weight") is not None else None,
+                    "Label": match.findtext("Max/Label")
+                },
+                "Min": {
+                    "Count": match.findtext("Min/Count"),
+                    "Weight": match.findtext("Min/Weight"),
+                    "WeightFunction": match.find("Min/Weight").attrib.get("function") if match.find("Min/Weight") is not None else None,
+                    "Label": match.findtext("Min/Label")
+                } if match.find("Min") is not None else None,
+                "RegionStart": match.findtext("RegionStart"),
+                "RegionEnd": match.findtext("RegionEnd"),
+                "Pattern": []
             }
+
+            # Pega os elementos de Pattern como dicionários (não só tags)
+            for pat in match.findall("Pattern"):
+                pat_dict = {}
+                for el in pat:
+                    pat_dict[el.tag] = el.text
+                rule["Pattern"].append(pat_dict)
+
             rules.append(rule)
         contracts[contract_id] = rules
+
 
     # Requisitos de cobertura por dia da semana
     for day_cover in root.find("CoverRequirements").findall("DayOfWeekCover"):
@@ -82,20 +111,19 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "Weight": int(req.attrib["weight"])
         })
 
+    # CoverWeights
+    cover_weights_node = root.find("CoverWeights")
+    if cover_weights_node is not None:
+        cover_weights["PrefOverStaffing"] = int(cover_weights_node.findtext("PrefOverStaffing", default="0"))
+        cover_weights["PrefUnderStaffing"] = int(cover_weights_node.findtext("PrefUnderStaffing", default="0"))
+
     # Datas do período
     start_date = root.findtext("StartDate")
     end_date = root.findtext("EndDate")
 
-    # # visualização
-    # print("Turnos:", shifts)
-    # print("Funcionários (3 primeiros):", dict(list(employees.items())[:3]))
-    # print("Contrato 36 (regras):", contracts["36"][:2])  # exemplo
-    # print("Cobertura Segunda-feira:", cover_requirements["Monday"])
-    # print("Pedidos de folga:", shift_off_requests[:2])
-    # print("Pedidos de turno:", shift_on_requests)
-
     return {
         "shifts": shifts,
+        "shift_groups" : shift_groups,
         "employees": employees,
         "contracts": contracts,
         "cover_requirements": cover_requirements,
