@@ -1,6 +1,11 @@
 def load_data(xml_path: str ='ORTEC01.xml'):
     import xml.etree.ElementTree as ET
     from collections import defaultdict
+    from datetime import datetime
+
+    # Função auxiliar para converter datas no formato ISO yyyy-mm-dd
+    def parse_date(date_str):
+        return datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else None
 
     # Parse do XML
     tree = ET.parse(xml_path)
@@ -19,11 +24,20 @@ def load_data(xml_path: str ='ORTEC01.xml'):
     # Turnos disponíveis
     for shift in root.find("ShiftTypes"):
         shift_id = shift.attrib["ID"]
+        # Converter horários para strings (ou datetime.time se quiser)
+        start_time = shift.findtext("StartTime")
+        end_time = shift.findtext("EndTime")
+
+        # Se quiser converter para time, descomente abaixo:
+        # from datetime import time
+        # start_time = datetime.strptime(start_time, "%H:%M:%S").time() if start_time else None
+        # end_time = datetime.strptime(end_time, "%H:%M:%S").time() if end_time else None
+
         shifts[shift_id] = {
             "Label": shift.findtext("Label"),
             "Name": shift.findtext("Name"),
-            "StartTime": shift.findtext("StartTime"),
-            "EndTime": shift.findtext("EndTime"),
+            "StartTime": start_time,
+            "EndTime": end_time,
             "Color": shift.findtext("Color")
         }
 
@@ -48,7 +62,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
         emp_id = emp.attrib["ID"]
         employees[emp_id] = {
             "Name": emp.findtext("Name"),
-            "ContractID": emp.findtext("ContractID")
+            "ContractID": emp.findtext("ContractID")  # Pode converter para int se quiser
         }
 
     # Contratos e padrões
@@ -56,25 +70,48 @@ def load_data(xml_path: str ='ORTEC01.xml'):
         contract_id = contract.attrib["ID"]
         rules = []
         for match in contract.find("Patterns").findall("Match"):
+
+            max_elem = match.find("Max")
+            max_weight_elem = max_elem.find("Weight") if max_elem is not None else None
+
+            # Converter para int ou float (float aqui para pesos que podem ter função)
+            max_weight_value = float(max_weight_elem.text) if max_weight_elem is not None else None
+            max_weight_function = max_weight_elem.attrib.get("function") if max_weight_elem is not None else None
+            max_count = int(max_elem.findtext("Count")) if max_elem is not None else None
+            max_label = max_elem.findtext("Label") if max_elem is not None else None
+
+            min_elem = match.find("Min")
+            if min_elem is not None:
+                min_weight_elem = min_elem.find("Weight")
+                min_weight_value = float(min_weight_elem.text) if min_weight_elem is not None else None
+                min_weight_function = min_weight_elem.attrib.get("function") if min_weight_elem is not None else None
+                min_count = int(min_elem.findtext("Count"))
+                min_label = min_elem.findtext("Label")
+                min_dict = {
+                    "Count": min_count,
+                    "Weight": min_weight_value,
+                    "WeightFunction": min_weight_function,
+                    "Label": min_label
+                }
+            else:
+                min_dict = None
+
+            region_start = int(match.findtext("RegionStart")) if match.findtext("RegionStart") else None
+            region_end = int(match.findtext("RegionEnd")) if match.findtext("RegionEnd") else None
+
             rule = {
                 "Max": {
-                    "Count": match.findtext("Max/Count"),
-                    "Weight": match.findtext("Max/Weight"),
-                    "WeightFunction": match.find("Max/Weight").attrib.get("function") if match.find("Max/Weight") is not None else None,
-                    "Label": match.findtext("Max/Label")
+                    "Count": max_count,
+                    "Weight": max_weight_value,
+                    "WeightFunction": max_weight_function,
+                    "Label": max_label
                 },
-                "Min": {
-                    "Count": match.findtext("Min/Count"),
-                    "Weight": match.findtext("Min/Weight"),
-                    "WeightFunction": match.find("Min/Weight").attrib.get("function") if match.find("Min/Weight") is not None else None,
-                    "Label": match.findtext("Min/Label")
-                } if match.find("Min") is not None else None,
-                "RegionStart": match.findtext("RegionStart"),
-                "RegionEnd": match.findtext("RegionEnd"),
+                "Min": min_dict,
+                "RegionStart": region_start,
+                "RegionEnd": region_end,
                 "Pattern": []
             }
 
-            # Pega os elementos de Pattern como dicionários (não só tags)
             for pat in match.findall("Pattern"):
                 pat_dict = {}
                 for el in pat:
@@ -82,8 +119,8 @@ def load_data(xml_path: str ='ORTEC01.xml'):
                 rule["Pattern"].append(pat_dict)
 
             rules.append(rule)
-        contracts[contract_id] = rules
 
+        contracts[contract_id] = rules
 
     # Requisitos de cobertura por dia da semana
     for day_cover in root.find("CoverRequirements").findall("DayOfWeekCover"):
@@ -98,7 +135,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
         shift_off_requests.append({
             "EmployeeID": req.findtext("EmployeeID"),
             "ShiftTypeID": req.findtext("ShiftTypeID"),
-            "Date": req.findtext("Date"),
+            "Date": datetime.strptime(req.findtext("Date"), "%Y-%m-%d").date(),
             "Weight": int(req.attrib["weight"])
         })
 
@@ -107,7 +144,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
         shift_on_requests.append({
             "EmployeeID": req.findtext("EmployeeID"),
             "ShiftTypeID": req.findtext("ShiftTypeID"),
-            "Date": req.findtext("Date"),
+            "Date": datetime.strptime(req.findtext("Date"), "%Y-%m-%d").date(), 
             "Weight": int(req.attrib["weight"])
         })
 
@@ -117,9 +154,9 @@ def load_data(xml_path: str ='ORTEC01.xml'):
         cover_weights["PrefOverStaffing"] = int(cover_weights_node.findtext("PrefOverStaffing", default="0"))
         cover_weights["PrefUnderStaffing"] = int(cover_weights_node.findtext("PrefUnderStaffing", default="0"))
 
-    # Datas do período
-    start_date = root.findtext("StartDate")
-    end_date = root.findtext("EndDate")
+    start_date = parse_date(root.findtext("StartDate"))
+    end_date = parse_date(root.findtext("EndDate"))
+    
 
     return {
         "shifts": shifts,
@@ -130,6 +167,6 @@ def load_data(xml_path: str ='ORTEC01.xml'):
         "shift_off_requests": shift_off_requests,
         "shift_on_requests": shift_on_requests,
         "start_date": start_date,
-        "end_date": end_date
+        "end_date": end_date,
+        "cover_weights" : cover_weights,
     }
-
