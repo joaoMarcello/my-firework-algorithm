@@ -11,6 +11,75 @@ SEED = 42
 np.random.seed(SEED)
 random.seed(SEED)
 
+def contract_penalty(emp_id, emp_schedule):
+    total = 0
+    contract_id = employees[emp_id]["ContractID"]
+    shift_labels = [shift_ids[idx] for idx in emp_schedule]
+    rules = contracts.get(contract_id, [])
+
+    for rule in rules:
+        pattern = rule["Pattern"]
+        label = rule.get("Label", "")
+        max_count = int(rule.get("Max", 999999)) if rule.get("Max") else None
+        weight = int(rule.get("Weight", 0))
+
+        # Max total shifts
+        if "Max 20 shifts" in label:
+            worked_days = sum(1 for s in shift_labels if s != "OFF")
+            if worked_days > max_count:
+                total += (worked_days - max_count) * weight
+
+        # Max night shifts
+        elif "Max 3 nights" in label:
+            night_shift = "N"
+            night_count = shift_labels.count(night_shift)
+            if night_count > max_count:
+                total += (night_count - max_count) * weight
+
+        # Min 2 consecutive free days
+        elif "Min 2 consecutive free days" in label:
+            consec_frees = 0
+            max_consec_frees = 0
+            for shift in shift_labels:
+                if shift == "OFF":
+                    consec_frees += 1
+                    max_consec_frees = max(max_consec_frees, consec_frees)
+                else:
+                    consec_frees = 0
+            if max_consec_frees < 2:
+                total += weight
+
+        # Max working weekends
+        elif "Max 3 working weekends" in label:
+            weekends_worked = 0
+            for i in range(n_days):
+                date = start + timedelta(days=i)
+                if date.weekday() in (5, 6):  # Sábado ou domingo
+                    if shift_labels[i] != "OFF":
+                        weekends_worked += 1
+                        break
+            if weekends_worked > max_count:
+                total += (weekends_worked - max_count) * weight
+
+        # Shifts per week (com RegionStart e RegionEnd)
+        elif "Shifts per week" in label:
+            region_start = int(rule.get("RegionStart", 0))
+            region_end = int(rule.get("RegionEnd", n_days - 1))
+            region_shifts = shift_labels[region_start:region_end + 1]
+            worked = sum(1 for s in region_shifts if s != "OFF")
+            min_count = int(rule.get("Min", 0)) if rule.get("Min") else None
+            max_count = int(rule.get("Max", 999)) if rule.get("Max") else None
+            weight = int(rule.get("Weight", 0))
+
+            if min_count and worked < min_count:
+                penalty = (min_count - worked) ** 2 * weight
+                total += penalty
+            if max_count and worked > max_count:
+                penalty = (worked - max_count) ** 2 * weight
+                total += penalty
+
+    return total
+
 def fitness(solution):
     total_penalty = 0
     # schedule = np.array(solution, dtype=int).reshape((n_employees, n_days))
@@ -58,6 +127,11 @@ def fitness(solution):
                 continue
             if assigned_idx != requested_idx:
                 total_penalty += req["Weight"]
+
+    # Penalidades contratuais por funcionário
+    for emp_id, emp_idx in employee_id_to_index.items():
+        emp_schedule = schedule[emp_idx]
+        total_penalty += contract_penalty(emp_id, emp_schedule)
 
     return total_penalty
 
