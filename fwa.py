@@ -115,16 +115,26 @@ class FWA:
         return results
 
 
+    # def clip(self, val, bound):
+    #     # Implementação reflexiva baseada no paper original (reflete no limite)
+    #     min_b, max_b = bound
+    #     while val < min_b or val > max_b:
+    #         if val < min_b:
+    #             val = min_b + (min_b - val)
+    #         elif val > max_b:
+    #             val = max_b - (val - max_b)
+    #     # Correção final para garantir limite exato em casos de imprecisão numérica
+    #     return np.clip(val, min_b, max_b)
+    
     def clip(self, val, bound):
-        # Implementação reflexiva baseada no paper original (reflete no limite)
         min_b, max_b = bound
-        while val < min_b or val > max_b:
-            if val < min_b:
-                val = min_b + (min_b - val)
-            elif val > max_b:
+        range_b = max_b - min_b
+        if val < min_b or val > max_b:
+            val = min_b + abs((val - min_b) % (2 * range_b))
+            if val > max_b:
                 val = max_b - (val - max_b)
-        # Correção final para garantir limite exato em casos de imprecisão numérica
-        return np.clip(val, min_b, max_b)
+        return val
+
 
     def select(self, candidates):
         candidates = np.array(candidates)
