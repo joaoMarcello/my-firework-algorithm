@@ -128,10 +128,10 @@ def fitness(solution):
             if assigned_idx != requested_idx:
                 total_penalty += req["Weight"]
 
-    # Penalidades contratuais por funcionário
-    for emp_id, emp_idx in employee_id_to_index.items():
-        emp_schedule = schedule[emp_idx]
-        total_penalty += contract_penalty(emp_id, emp_schedule)
+    # # Penalidades contratuais por funcionário
+    # for emp_id, emp_idx in employee_id_to_index.items():
+    #     emp_schedule = schedule[emp_idx]
+    #     total_penalty += contract_penalty(emp_id, emp_schedule)
 
     return total_penalty
 
@@ -166,7 +166,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     data = load_data(xml_path=args.xml_path)
+
     shifts = data['shifts']
+    shifts = dict(sorted(shifts.items(), key=lambda item: datetime.strptime(item[1]["StartTime"], "%H:%M:%S") if item[1]["StartTime"] else datetime.max))
+
     employees = data['employees']
     contracts = data['contracts']
     cover = data['cover_requirements']
@@ -179,7 +182,7 @@ if __name__ == '__main__':
     end = datetime.strptime(end_date, "%Y-%m-%d")
     n_days = (end - start).days + 1
     n_employees = len(employees)
-    shift_ids = sorted(shifts.keys())
+    shift_ids = list(shifts.keys())
     n_shift_types = len(shift_ids)
 
     # Mapeamento para acesso rápido ao índice do funcionário
