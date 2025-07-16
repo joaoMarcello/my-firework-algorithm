@@ -21,6 +21,7 @@ class FWA:
         self.history = []
         self.selection_method = selection_method
         self.n = None
+        self.current_iter = 0
 
         if seed is not None:
             np.random.seed(seed)
@@ -89,12 +90,20 @@ class FWA:
 
     def run(self, verbose=False, log_freq=10):
         self.init_fireworks()
+        self.current_iter = 0
         pbar = trange(self.max_iter, desc="FWA", dynamic_ncols=True)
         for i in pbar:
             self.iter()
+            self.current_iter += 1
             pbar.set_description(f"FWA {self.best_value:.0f}")
             if verbose and (i % log_freq == 0 or i == self.max_iter - 1):
                 print(f"Iter {i}: best = {self.best_value}")
+
+    def get_dynamic_amplitude(self):
+        initial = self.A_hat
+        final = 0.2  # amplitude mínima no fim
+        decay_rate = self.current_iter / (self.max_iter - 1 + 1e-8)
+        return initial * (1 - decay_rate) + final * decay_rate
 
 
     def iter(self):
@@ -114,7 +123,11 @@ class FWA:
             # cálculo da amplitude da explosão. vai ser maior para fogos
             # com fitness ruins (vão explorar mais) e menor para fogos 
             # com fitness bons (busca será mais local)
-            A_i = self.A_hat * (f_values[i] - ymin + 1e-12) / amplitude_denom
+
+            # A_i = self.A_hat * (f_values[i] - ymin + 1e-12) / amplitude_denom
+            A_dynamic = self.get_dynamic_amplitude()
+            A_i = A_dynamic * (f_values[i] - ymin + 1e-12) / amplitude_denom
+
 
             sparks += self.explode(fw, s_i, A_i)
 
