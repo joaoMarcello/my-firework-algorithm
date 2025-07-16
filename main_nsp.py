@@ -80,6 +80,180 @@ def contract_penalty(emp_id, emp_schedule):
 
     return total
 
+def check_contractual_patterns_with_matching(schedule, hard_only=False):
+    """
+    Checa padrões contratuais no agendamento.
+
+    Args:
+        schedule (np.ndarray): matriz (n_employees x n_days) com índices de turnos.
+        hard_only (bool): se True, considera apenas padrões hard (Max Count == 0 e Weight >= 1000).
+
+    Returns:
+        float: penalidade total pelas violações dos padrões.
+    """
+    total_penalty = 0.0
+    
+    # Cache para acelerar acesso e evitar repetição de parsing
+    # Prepara map: shift index -> shift_id
+    shift_index_to_id = {idx: sid for idx, sid in enumerate(shift_ids)}
+    
+    # Para cada funcionário
+    for emp_id, emp_idx in employee_id_to_index.items():
+        emp_contract_id = employees[emp_id]["ContractID"]
+        contract_rules = contracts.get(emp_contract_id, [])
+
+        emp_schedule = [shift_index_to_id[s] for s in schedule[emp_idx]]
+
+        for rule in contract_rules:
+            max_rule = rule.get("Max")
+            if max_rule is None:
+                continue
+            
+            max_count = max_rule.get("Count", None)
+            max_weight = max_rule.get("Weight", 0)
+
+            # Se hard_only=True, processa só regras Max Count==0 e Weight>=1000
+            if hard_only:
+                if not (max_count == 0 and max_weight >= 1000):
+                    continue
+
+            # Normaliza max_count como int (caso seja None, pula)
+            if max_count is None:
+                continue
+
+            # Padrões para corresponder (listas de dicionários)
+            patterns = rule.get("Pattern", [])
+            if not patterns:
+                continue
+
+            # Para cada pattern da regra, verificar quantas vezes ocorre na escala
+            for pat in patterns:
+                # Criar lista de turnos esperados para comparação (ex: ['N', '-', 'OFF'], etc)
+                expected_pattern = []
+                pattern_length = len(pat)
+                for day_offset in range(pattern_length):
+                    # Pode ser chave 'Shift', 'ShiftGroup', 'NotShift', 'StartDay', etc
+                    # Prioridade: Shift > ShiftGroup > NotShift
+
+                    if "Shift" in pat:
+                        expected_pattern.append(("Shift", pat["Shift"]))
+                    elif "ShiftGroup" in pat:
+                        expected_pattern.append(("ShiftGroup", pat["ShiftGroup"]))
+                    elif "NotShift" in pat:
+                        expected_pattern.append(("NotShift", pat["NotShift"]))
+                    else:
+                        # Caso incomum: sem info, assume wildcard
+                        expected_pattern.append(("Any", None))
+
+                # Slide pelo emp_schedule para contar ocorrências
+                count_occurrences = 0
+                for i in range(len(emp_schedule) - pattern_length + 1):
+                    match = True
+                    for j in range(pattern_length):
+                        kind, val = expected_pattern[j]
+                        shift_at_j = emp_schedule[i + j]
+
+                        if kind == "Shift":
+                            if val != "-" and shift_at_j != val:
+                                match = False
+                                break
+                        elif kind == "NotShift":
+                            if shift_at_j == val:
+                                match = False
+                                break
+                        elif kind == "ShiftGroup":
+                            # Checar se shift_at_j pertence ao grupo val
+                            group_shifts = shift_groups.get(val, [])
+                            if shift_at_j not in group_shifts:
+                                match = False
+                                break
+                        # 'Any' aceita qualquer turno
+
+                    if match:
+                        count_occurrences += 1
+
+                # Penalidade se count_occurrences > max_count
+                if count_occurrences > max_count:
+                    # Se função peso Quadrática
+                    weight = max_weight
+                    weight_function = max_rule.get("WeightFunction", None)
+                    diff = count_occurrences - max_count
+
+                    if weight_function and weight_function.lower() == "quadratic":
+                        penalty = weight * (diff ** 2)
+                    else:
+                        penalty = weight * diff
+                    
+                    total_penalty += penalty
+
+    return total_penalty
+
+
+def check_hard_constraints(schedule):
+    penalty = 0
+
+    # Exemplo para contar turnos noturnos consecutivos e penalizar se > 3
+    max_consecutive_night_shifts = 3
+    night_shift_ids = [sid for sid, info in shifts.items() if info.get("Name", "").lower().find("night") >= 0 or sid.lower() == "night"]  # exemplo heurístico
+    
+    for emp_idx in range(n_employees):
+        consec_nights = 0
+        consec_workdays = 0
+        weekends_off = 0  # para contar fins de semana livres
+        night_shift_sequences = 0
+
+        for day in range(n_days):
+            shift_id = shift_ids[schedule[emp_idx, day]]
+            is_night = shift_id in night_shift_ids
+            is_off = (shift_id == "OFF")
+
+            # Consecutive night shifts
+            if is_night:
+                consec_nights += 1
+            else:
+                if consec_nights > max_consecutive_night_shifts:
+                    penalty += 1000  # penalidade pesada
+                if consec_nights >= 2:
+                    # Requisito de 42h descanso após 2+ turnos noturnos consecutivos
+                    # Exemplo simplificado: penalize se não tem 2 dias OFF ou equivalente depois
+                    if day + 2 <= n_days:
+                        next_shifts = [shift_ids[schedule[emp_idx, d]] for d in range(day, min(day+3, n_days))]
+                        if any(sid != "OFF" for sid in next_shifts):
+                            penalty += 1000
+                consec_nights = 0
+
+            # Consecutive workdays (não off)
+            if not is_off:
+                consec_workdays += 1
+            else:
+                if consec_workdays > 6:
+                    penalty += 1000
+                consec_workdays = 0
+
+            # Contagem fins de semana off (simplificação: verificar sábado e domingo)
+            # aqui precisaria de datas reais para verificar quais dias são finais de semana
+            # Assumindo start_date + day é datetime.date:
+            date = start_date + timedelta(days=day)
+            if date.weekday() == 5 or date.weekday() == 6:  # sábado/domingo
+                if is_off:
+                    weekends_off += 1
+
+        # No fim do agendamento, checar sequências finais:
+        if consec_nights > max_consecutive_night_shifts:
+            penalty += 1000
+        if consec_workdays > 6:
+            penalty += 1000
+
+        # Regra dos fins de semana off (ex: pelo menos 2 a cada 5 semanas)
+        # Aqui simplificado: 
+        # Você precisaria contar janelas de 5 semanas e checar se em cada janela tem pelo menos 2 finais de semana off
+        # Penalidade se não atender
+
+    # Outras regras (horas, descanso 11h etc) demandam cálculo detalhado e dados adicionais.
+
+    return penalty
+
+
 def fitness(solution):
     total_penalty = 0
     # schedule = np.array(solution, dtype=int).reshape((n_employees, n_days))
@@ -128,12 +302,16 @@ def fitness(solution):
             if assigned_idx != requested_idx:
                 total_penalty += req["Weight"]
 
-    # # Penalidades contratuais por funcionário
-    # for emp_id, emp_idx in employee_id_to_index.items():
-    #     emp_schedule = schedule[emp_idx]
-    #     total_penalty += contract_penalty(emp_id, emp_schedule)
 
-    return total_penalty
+    hard_penalty = check_hard_constraints(schedule)
+    hard_contract_penalty = check_contractual_patterns_with_matching(schedule, hard_only=True)
+    soft_contract_penalty = check_contractual_patterns_with_matching(schedule, hard_only=False) - hard_contract_penalty
+
+    if hard_penalty + hard_contract_penalty > 0:
+        return 1e9 + hard_penalty + hard_contract_penalty + total_penalty + soft_contract_penalty
+
+    return total_penalty + soft_contract_penalty
+
 
 
 if __name__ == '__main__':
