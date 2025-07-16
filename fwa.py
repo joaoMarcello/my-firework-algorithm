@@ -141,30 +141,36 @@ class FWA:
     def __select_distance(self, candidates):
         f_vals = [self.func(x) for x in candidates]
         best_idx = np.argmin(f_vals)
-        # o melhor candidato sempre será mantido (elitismo)
-        best = candidates[best_idx]
+        best = candidates[best_idx]  # elitismo
 
-        # distances = np.array([
-        #     sum(np.linalg.norm(x - y) for y in candidates)
-        #     for x in candidates
-        # ])
-
-        # versão mais rápida para o cálculo das distâncias
+        # Cálculo eficiente das distâncias entre candidatos
         distances = cdist(candidates, candidates).sum(axis=1)
         probs = distances / distances.sum()
 
         indices = np.arange(len(candidates))
         valid_indices = [i for i in indices if i != best_idx]
+
+        if len(valid_indices) == 0:
+            raise ValueError("Nenhum candidato disponível além do melhor.")
+
         probs_filtered = probs[valid_indices]
         probs_filtered /= probs_filtered.sum()
 
-        if len(valid_indices) < self.n - 1:
-            # candidatos insuficientes. vamos permitir repetição
-            chosen = np.random.choice(valid_indices, self.n - 1, replace=True)
-        else:
-            chosen = np.random.choice(valid_indices, self.n - 1, p=probs_filtered, replace=False)
+        selected = [best]  # sempre mantemos o melhor
 
-        selected = [best] + [candidates[i] for i in chosen]
+        if len(valid_indices) < self.n - 1:
+            # Poucos candidatos viáveis: permitimos repetição com ruído
+            chosen = np.random.choice(valid_indices, self.n - 1, replace=True)
+            for i in chosen:
+                spark = np.copy(candidates[i])
+                noise = np.random.normal(loc=0, scale=0.2, size=spark.shape)  # ruído suave
+                spark += noise
+                spark = np.clip(spark, [b[0] for b in self.bounds], [b[1] for b in self.bounds])
+                selected.append(spark)
+        else:
+            # Seleção por diversidade sem repetição
+            chosen = np.random.choice(valid_indices, self.n - 1, p=probs_filtered, replace=False)
+            selected += [candidates[i] for i in chosen]
 
         return selected
 
