@@ -30,6 +30,9 @@ def load_data(xml_path: str ='ORTEC01.xml'):
     shift_groups = {}
     cover_weights = {}
 
+    start_date = parse_date(root.findtext("StartDate"))
+    end_date = parse_date(root.findtext("EndDate"))
+    
     # Turnos disponíveis
     for shift in root.find("ShiftTypes"):
         shift_id = shift.attrib["ID"]
@@ -61,12 +64,12 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "EndTime": None,
             "Duration": 0.0,
         }
-
-    # ShiftGroups
-    for group in root.find("ShiftGroups"):
-        group_id = group.attrib["ID"]
-        shift_list = [s.text for s in group.findall("Shift")]
-        shift_groups[group_id] = shift_list
+    if root.find("ShiftGroups") is not None:
+     # ShiftGroups
+        for group in root.find("ShiftGroups"):
+            group_id = group.attrib["ID"]
+            shift_list = [s.text for s in group.findall("Shift")]
+            shift_groups[group_id] = shift_list
 
     # Funcionários
     for emp in root.find("Employees"):
@@ -80,58 +83,60 @@ def load_data(xml_path: str ='ORTEC01.xml'):
     for contract in root.find("Contracts"):
         contract_id = contract.attrib["ID"]
         rules = []
-        for match in contract.find("Patterns").findall("Match"):
 
-            max_elem = match.find("Max")
-            max_weight_elem = max_elem.find("Weight") if max_elem is not None else None
+        patterns_node = contract.find("Patterns")
+        if patterns_node is not None:
+            for match in patterns_node.findall("Match"):
+                max_elem = match.find("Max")
+                max_weight_elem = max_elem.find("Weight") if max_elem is not None else None
 
-            # Converter para int ou float (float aqui para pesos que podem ter função)
-            max_weight_value = float(max_weight_elem.text) if max_weight_elem is not None else None
-            max_weight_function = max_weight_elem.attrib.get("function") if max_weight_elem is not None else None
-            max_count = int(max_elem.findtext("Count")) if max_elem is not None else None
-            max_label = max_elem.findtext("Label") if max_elem is not None else None
+                max_weight_value = float(max_weight_elem.text) if max_weight_elem is not None else None
+                max_weight_function = max_weight_elem.attrib.get("function") if max_weight_elem is not None else None
+                max_count = int(max_elem.findtext("Count")) if max_elem is not None else None
+                max_label = max_elem.findtext("Label") if max_elem is not None else None
 
-            min_elem = match.find("Min")
-            if min_elem is not None:
-                min_weight_elem = min_elem.find("Weight")
-                min_weight_value = float(min_weight_elem.text) if min_weight_elem is not None else None
-                min_weight_function = min_weight_elem.attrib.get("function") if min_weight_elem is not None else None
-                min_count = int(min_elem.findtext("Count"))
-                min_label = min_elem.findtext("Label")
-                min_dict = {
-                    "Count": min_count,
-                    "Weight": min_weight_value,
-                    "WeightFunction": min_weight_function,
-                    "Label": min_label
+                min_elem = match.find("Min")
+                if min_elem is not None:
+                    min_weight_elem = min_elem.find("Weight")
+                    min_weight_value = float(min_weight_elem.text) if min_weight_elem is not None else None
+                    min_weight_function = min_weight_elem.attrib.get("function") if min_weight_elem is not None else None
+                    min_count = int(min_elem.findtext("Count"))
+                    min_label = min_elem.findtext("Label")
+                    min_dict = {
+                        "Count": min_count,
+                        "Weight": min_weight_value,
+                        "WeightFunction": min_weight_function,
+                        "Label": min_label
+                    }
+                else:
+                    min_dict = None
+
+                region_start = int(match.findtext("RegionStart")) if match.findtext("RegionStart") else None
+                region_end = int(match.findtext("RegionEnd")) if match.findtext("RegionEnd") else None
+
+                rule = {
+                    "Max": {
+                        "Count": max_count,
+                        "Weight": max_weight_value,
+                        "WeightFunction": max_weight_function,
+                        "Label": max_label
+                    },
+                    "Min": min_dict,
+                    "RegionStart": region_start,
+                    "RegionEnd": region_end,
+                    "Pattern": []
                 }
-            else:
-                min_dict = None
 
-            region_start = int(match.findtext("RegionStart")) if match.findtext("RegionStart") else None
-            region_end = int(match.findtext("RegionEnd")) if match.findtext("RegionEnd") else None
+                for pat in match.findall("Pattern"):
+                    pat_dict = {}
+                    for el in pat:
+                        pat_dict[el.tag] = el.text
+                    rule["Pattern"].append(pat_dict)
 
-            rule = {
-                "Max": {
-                    "Count": max_count,
-                    "Weight": max_weight_value,
-                    "WeightFunction": max_weight_function,
-                    "Label": max_label
-                },
-                "Min": min_dict,
-                "RegionStart": region_start,
-                "RegionEnd": region_end,
-                "Pattern": []
-            }
-
-            for pat in match.findall("Pattern"):
-                pat_dict = {}
-                for el in pat:
-                    pat_dict[el.tag] = el.text
-                rule["Pattern"].append(pat_dict)
-
-            rules.append(rule)
+                rules.append(rule)
 
         contracts[contract_id] = rules
+
 
     # Requisitos de cobertura por dia da semana
     for day_cover in root.find("CoverRequirements").findall("DayOfWeekCover"):
@@ -143,20 +148,51 @@ def load_data(xml_path: str ='ORTEC01.xml'):
 
     # Pedidos de folga (ShiftOff)
     for req in root.find("ShiftOffRequests").findall("ShiftOff"):
-        shift_off_requests.append({
-            "EmployeeID": req.findtext("EmployeeID"),
-            "ShiftTypeID": req.findtext("ShiftTypeID"),
-            "Date": datetime.strptime(req.findtext("Date"), "%Y-%m-%d").date(),
-            "Weight": int(req.attrib["weight"])
-        })
+        emp_id = req.findtext("EmployeeID")
+        shift_type = req.findtext("ShiftTypeID") or req.findtext("Shift")  # usa ShiftTypeID se tiver, senão Shift
+        weight = int(req.attrib.get("weight", 1))
 
+        # Tenta obter a data completa primeiro
+        date_str = req.findtext("Date")
+        if date_str:
+            date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        else:
+            # Se não tiver Date, usa Day (inteiro) a partir da start_date
+            day_number = req.findtext("Day")
+            if day_number is None:
+                continue  # ignora se não houver nem Date nem Day
+            day_index = int(day_number)
+            date = start_date + timedelta(days=day_index)
+
+        shift_off_requests.append({
+            "EmployeeID": emp_id,
+            "ShiftTypeID": shift_type,
+            "Date": date,
+            "Weight": weight
+        })
+        
     # Pedidos de turno desejado (ShiftOn)
     for req in root.find("ShiftOnRequests").findall("ShiftOn"):
+        emp_id = req.findtext("EmployeeID")
+        shift_type = req.findtext("ShiftTypeID") or req.findtext("Shift")
+        weight = int(req.attrib.get("weight", 1))
+
+        # Tenta obter a data completa primeiro
+        date_str = req.findtext("Date")
+        if date_str:
+            date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        else:
+            day_number = req.findtext("Day")
+            if day_number is None:
+                continue  # ignora se não houver nem Date nem Day
+            day_index = int(day_number)
+            date = start_date + timedelta(days=day_index)
+
         shift_on_requests.append({
-            "EmployeeID": req.findtext("EmployeeID"),
-            "ShiftTypeID": req.findtext("ShiftTypeID"),
-            "Date": datetime.strptime(req.findtext("Date"), "%Y-%m-%d").date(), 
-            "Weight": int(req.attrib["weight"])
+            "EmployeeID": emp_id,
+            "ShiftTypeID": shift_type,
+            "Date": date,
+            "Weight": weight
         })
 
     # CoverWeights
@@ -165,8 +201,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
         cover_weights["PrefOverStaffing"] = int(cover_weights_node.findtext("PrefOverStaffing", default="0"))
         cover_weights["PrefUnderStaffing"] = int(cover_weights_node.findtext("PrefUnderStaffing", default="0"))
 
-    start_date = parse_date(root.findtext("StartDate"))
-    end_date = parse_date(root.findtext("EndDate"))
+
     
 
     return {
