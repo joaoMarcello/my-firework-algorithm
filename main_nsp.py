@@ -6,6 +6,7 @@ import numpy as np
 
 from fwa import FWA
 from utils import load_data
+from constraints.hard_constraints import *
 
 SEED = 42
 np.random.seed(SEED)
@@ -15,6 +16,13 @@ def fitness(solution):
     schedule = np.rint(solution).astype(int).reshape((n_employees, n_days))
     total_penalty = 0
 
+    decoded = decode_solution(
+        solution,
+        employees,
+        start_date,
+        n_days,
+        shift_ids
+    )
     # Penalidade por pedidos de folga não atendidos
     off_idx = shift_id_to_index["OFF"]
     for req in off_reqs:
@@ -126,6 +134,9 @@ def fitness(solution):
                     if match:
                         total_penalty += weight
 
+    total_penalty += hard_cover_fulfillment(decoded, cover, start_date, end_date)
+    total_penalty += hard_exceed_contract_hours(decoded, shifts, employees, contracts)
+
     return total_penalty
 
 
@@ -159,11 +170,19 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     data = load_data(xml_path=args.xml_path)
-
+    
+    def pad_time_string(tstr):
+        parts = tstr.split(":")
+        parts = [part.zfill(2) for part in parts]
+        while len(parts) < 3:
+            parts.append("00")
+        return ":".join(parts)
+    
     shifts = data['shifts']
     shifts = dict(sorted(shifts.items(),
-                    key=lambda item: datetime.strptime(item[1]["StartTime"], "%H:%M:%S").time()
-                    if item[1]["StartTime"] else time.max))
+        key=lambda item: datetime.strptime(pad_time_string(item[1]["StartTime"]), "%H:%M:%S").time()
+        if item[1]["StartTime"] else time.max))
+
 
     shift_groups = data['shift_groups']
     employees = data['employees']
@@ -202,10 +221,18 @@ if __name__ == '__main__':
                m_hat= args.fwa_m_hat,
                max_iter=args.fwa_max_iter)
     
+    fwa.set_problem_context(start_date=start_date,
+                            n_days=n_days,
+                            n_employees=n_employees,
+                            shift_id_to_index=shift_id_to_index,
+                            shift_ids=shift_ids)
+
+    print(n_employees)    
     fwa.run()
     fwa.save_to_disc(path=args.save_file + '.json')
 
     print("Melhor valor encontrado:", fwa.best_value)
+
 
     fwa.plot_history_from_file(json_path=args.save_file + '.json', save_path=args.save_file + '.png')
 
