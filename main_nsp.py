@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import random
 
 import numpy as np
@@ -53,7 +53,7 @@ def contract_penalty(emp_id, emp_schedule):
         elif "Max 3 working weekends" in label:
             weekends_worked = 0
             for i in range(n_days):
-                date = start + timedelta(days=i)
+                date = start_date + timedelta(days=i)
                 if date.weekday() in (5, 6):  # Sábado ou domingo
                     if shift_labels[i] != "OFF":
                         weekends_worked += 1
@@ -87,7 +87,7 @@ def fitness(solution):
 
     # Cobertura mínima
     for day_offset in range(n_days):
-        date = start + timedelta(days=day_offset)
+        date = start_date + timedelta(days=day_offset)
         day_name = date.strftime("%A")
         shift_counts = {sid: 0 for sid in shifts}
         for emp_id, emp_idx in employee_id_to_index.items():
@@ -107,7 +107,7 @@ def fitness(solution):
         emp_idx = employee_id_to_index.get(req["EmployeeID"])
         if emp_idx is None:
             continue
-        day_idx = (datetime.strptime(req["Date"], "%Y-%m-%d") - start).days
+        day_idx = (req["Date"] - start_date).days  # já é datetime.date, pode subtrair direto
         if 0 <= day_idx < n_days:
             assigned_idx = schedule[emp_idx, day_idx]  # índice do turno atribuído
             if assigned_idx != off_idx:  # penaliza se folga não foi atendida
@@ -118,7 +118,7 @@ def fitness(solution):
         emp_idx = employee_id_to_index.get(req["EmployeeID"])
         if emp_idx is None:
             continue
-        day_idx = (datetime.strptime(req["Date"], "%Y-%m-%d") - start).days
+        day_idx = (req["Date"] - start_date).days  # já é datetime.date
         if 0 <= day_idx < n_days:
             assigned_idx = schedule[emp_idx, day_idx]
             requested_idx = shift_id_to_index.get(req["ShiftTypeID"], None)
@@ -168,19 +168,21 @@ if __name__ == '__main__':
     data = load_data(xml_path=args.xml_path)
 
     shifts = data['shifts']
-    shifts = dict(sorted(shifts.items(), key=lambda item: datetime.strptime(item[1]["StartTime"], "%H:%M:%S") if item[1]["StartTime"] else datetime.max))
+    shifts = dict(sorted(shifts.items(),
+                    key=lambda item: datetime.strptime(item[1]["StartTime"], "%H:%M:%S").time()
+                    if item[1]["StartTime"] else time.max))
 
+    shift_groups = data['shift_groups']
     employees = data['employees']
     contracts = data['contracts']
     cover = data['cover_requirements']
     off_reqs = data['shift_off_requests']
     on_reqs = data['shift_on_requests']
-    start_date = data['start_date']
-    end_date = data['end_date']
+    start_date = data['start_date']  # datetime.date já
+    end_date = data['end_date']      # datetime.date já
+    cover_weights = data['cover_weights']
 
-    start = datetime.strptime(start_date, "%Y-%m-%d")
-    end = datetime.strptime(end_date, "%Y-%m-%d")
-    n_days = (end - start).days + 1
+    n_days = (end_date - start_date).days + 1
     n_employees = len(employees)
     shift_ids = list(shifts.keys())
     n_shift_types = len(shift_ids)
