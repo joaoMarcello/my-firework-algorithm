@@ -1,11 +1,20 @@
 def load_data(xml_path: str ='ORTEC01.xml'):
     import xml.etree.ElementTree as ET
     from collections import defaultdict
-    from datetime import datetime
+    from datetime import datetime, timedelta
 
     # Função auxiliar para converter datas no formato ISO yyyy-mm-dd
     def parse_date(date_str):
         return datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else None
+    
+    def calculate_duration(start_time, end_time):
+        if not start_time or not end_time:
+            return 0.0
+        start = datetime.strptime(start_time, "%H:%M:%S")
+        end = datetime.strptime(end_time, "%H:%M:%S")
+        if end < start:
+            end += timedelta(days=1)  # turno cruza meia-noite
+        return (end - start).total_seconds() / 3600
 
     # Parse do XML
     tree = ET.parse(xml_path)
@@ -40,6 +49,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "EndTime": end_time,
             "Color": shift.findtext("Color")
         }
+        shifts[shift_id]["Duration"] = calculate_duration(start_time, end_time)
 
     # Adicionar turno especial para folga ("OFF")
     # Se o turno "OFF" não estiver nos dados, adicionamos.
@@ -48,7 +58,8 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "Label": "OFF",
             "Name": "Folga",
             "StartTime": None,
-            "EndTime": None
+            "EndTime": None,
+            "Duration": 0.0,
         }
 
     # ShiftGroups
