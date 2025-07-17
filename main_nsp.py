@@ -7,6 +7,7 @@ import numpy as np
 from fwa import FWA
 from utils import load_data
 from constraints.hard_constraints import *
+from constraints.soft_constraints import *
 
 SEED = 42
 np.random.seed(SEED)
@@ -85,26 +86,6 @@ def soft_constraints(schedule):
                 if worked_weekends > max_count:
                     penalty += (worked_weekends - max_count) * weight
 
-            # # Dias de trabalho por semana (min/max)
-            # elif "Shifts per week" in label:
-            #     region_start = rule.get("RegionStart", 0)
-            #     region_end = rule.get("RegionEnd", n_days - 1)
-
-            #     min_dict = rule.get("Min")
-            #     max_dict = rule.get("Max")
-
-            #     min_count = min_dict.get("Count") if min_dict else None
-            #     max_count = max_dict.get("Count") if max_dict else None
-            #     weight = max_dict.get("Weight") if max_dict else 0
-
-            #     for w_start in range(region_start, region_end + 1, 7):
-            #         w_end = min(w_start + 6, region_end)
-            #         work_days = sum(1 for s in shift_labels[w_start:w_end+1] if s != "OFF")
-            #         if min_count and work_days < min_count:
-            #             total_penalty += ((min_count - work_days) ** 2) * weight
-            #         if max_count and work_days > max_count:
-            #             total_penalty += ((work_days - max_count) ** 2) * weight
-
             # Padrões indesejados (ex: N, N, D)
             if pattern:
                 pattern_len = len(pattern)
@@ -125,6 +106,8 @@ def soft_constraints(schedule):
                     if match:
                         penalty += weight
 
+    return int(penalty)
+
 def fitness(solution):
     schedule = np.rint(solution).astype(int).reshape((n_employees, n_days))
     total_penalty = 0
@@ -139,18 +122,28 @@ def fitness(solution):
 
     # total_penalty += soft_constraints(schedule)
 
-    # total_penalty += hard_cover_fulfillment(decoded, cover, start_date, end_date)
+    # total_penalty += penalize_min_consecutive_free_days_all(schedule, shift_id_to_index["OFF"], employees, contracts)
 
-    total_penalty += hard_max_shifts_from_contract_matrix(schedule, employees, contracts, employee_id_to_index, shift_off_index=shift_id_to_index["OFF"])
+    # total_penalty += penalize_max_nights_all_nurses(schedule, employees, contracts, shift_id_to_index)
 
-    total_penalty += hard_check_bounded_shifts_in_region(
-        schedule_matrix=schedule,
-        employees=employees,
-        contracts=contracts,
-        employee_id_to_index=employee_id_to_index,
-        shift_off_index=shift_id_to_index["OFF"],
-        n_days=n_days,
-    )
+    # total_penalty += penalize_max_working_weekends(schedule, contracts, employees, shift_id_to_index, start_date)
+
+    # total_penalty += penalize_shift_off_requests(schedule, off_reqs, employees, shift_id_to_index, start_date)
+
+    total_penalty += penalize_shift_on_requests(schedule, on_reqs, employees, shift_id_to_index, start_date)
+
+    # total_penalty += hard_cover_fulfillment(schedule, cover, start_date, shift_id_to_index, cover_weights, n_days)
+
+    # total_penalty += hard_max_shifts_from_contract_matrix(schedule, employees, contracts, employee_id_to_index, shift_off_index=shift_id_to_index["OFF"])
+
+    # total_penalty += hard_check_bounded_shifts_in_region(
+    #     schedule_matrix=schedule,
+    #     employees=employees,
+    #     contracts=contracts,
+    #     employee_id_to_index=employee_id_to_index,
+    #     shift_off_index=shift_id_to_index["OFF"],
+    #     n_days=n_days,
+    # )
 
 
     return total_penalty
