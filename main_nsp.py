@@ -12,17 +12,8 @@ SEED = 42
 np.random.seed(SEED)
 random.seed(SEED)
 
-def fitness(solution):
-    schedule = np.rint(solution).astype(int).reshape((n_employees, n_days))
-    total_penalty = 0
-
-    decoded = decode_solution(
-        solution,
-        employees,
-        start_date,
-        n_days,
-        shift_ids
-    )
+def soft_constraints(schedule):
+    penalty = 0
     # Penalidade por pedidos de folga não atendidos
     off_idx = shift_id_to_index["OFF"]
     for req in off_reqs:
@@ -30,7 +21,7 @@ def fitness(solution):
         day_idx = (req["Date"] - start_date).days
         if emp_idx is not None and 0 <= day_idx < n_days:
             if schedule[emp_idx, day_idx] != off_idx:
-                total_penalty += req["Weight"]
+                penalty += req["Weight"]
 
     # Penalidade por turnos desejados não atendidos
     for req in on_reqs:
@@ -39,29 +30,29 @@ def fitness(solution):
         requested_idx = shift_id_to_index.get(req["ShiftTypeID"])
         if emp_idx is not None and 0 <= day_idx < n_days and requested_idx is not None:
             if schedule[emp_idx, day_idx] != requested_idx:
-                total_penalty += req["Weight"]
+                penalty += req["Weight"]
 
-    # Penalidade por exceder horas do contrato (+4h tolerância)
-    for emp_id, emp_idx in employee_id_to_index.items():
-        contract_id = employees[emp_id]["ContractID"]
-        contract_rules = contracts.get(contract_id, [])
-        max_hours = 0
+    # # Penalidade por exceder horas do contrato (+4h tolerância)
+    # for emp_id, emp_idx in employee_id_to_index.items():
+    #     contract_id = employees[emp_id]["ContractID"]
+    #     contract_rules = contracts.get(contract_id, [])
+    #     max_hours = 0
 
-        for rule in contract_rules:
-            if "Max 36 hours" in str(rule.get("Max", {}).get("Label", "")):
-                max_hours = rule["Max"]["Count"]
-                break
+    #     for rule in contract_rules:
+    #         if "Max 36 hours" in str(rule.get("Max", {}).get("Label", "")):
+    #             max_hours = rule["Max"]["Count"]
+    #             break
 
-        total_hours = 0.0
-        for d in range(n_days):
-            shift_idx = schedule[emp_idx, d]
-            shift_id = shift_ids[shift_idx]
-            duration = float(shifts[shift_id].get("Duration", 0))
-            total_hours += duration
+    #     total_hours = 0.0
+    #     for d in range(n_days):
+    #         shift_idx = schedule[emp_idx, d]
+    #         shift_id = shift_ids[shift_idx]
+    #         duration = float(shifts[shift_id].get("Duration", 0))
+    #         total_hours += duration
 
-        if max_hours > 0 and total_hours > max_hours + 4:
-            excess = total_hours - (max_hours + 4)
-            total_penalty += int(excess) * 10
+    #     if max_hours > 0 and total_hours > max_hours + 4:
+    #         excess = total_hours - (max_hours + 4)
+    #         total_penalty += int(excess) * 10
 
     # Penalidades de padrões contratuais e turnos por semana
     for emp_id, emp_idx in employee_id_to_index.items():
@@ -82,7 +73,7 @@ def fitness(solution):
             if "Max 3 nights" in label:
                 night_count = shift_labels.count("N")
                 if night_count > max_count:
-                    total_penalty += (night_count - max_count) * weight
+                    penalty += (night_count - max_count) * weight
 
             # Fins de semana trabalhados
             elif "Max 3 working weekends" in label:
@@ -92,27 +83,27 @@ def fitness(solution):
                     if any(shift != "OFF" for i, shift in enumerate(week_shifts) if (start_date + timedelta(days=week+i)).weekday() in (5, 6)):
                         worked_weekends += 1
                 if worked_weekends > max_count:
-                    total_penalty += (worked_weekends - max_count) * weight
+                    penalty += (worked_weekends - max_count) * weight
 
-            # Dias de trabalho por semana (min/max)
-            elif "Shifts per week" in label:
-                region_start = rule.get("RegionStart", 0)
-                region_end = rule.get("RegionEnd", n_days - 1)
+            # # Dias de trabalho por semana (min/max)
+            # elif "Shifts per week" in label:
+            #     region_start = rule.get("RegionStart", 0)
+            #     region_end = rule.get("RegionEnd", n_days - 1)
 
-                min_dict = rule.get("Min")
-                max_dict = rule.get("Max")
+            #     min_dict = rule.get("Min")
+            #     max_dict = rule.get("Max")
 
-                min_count = min_dict.get("Count") if min_dict else None
-                max_count = max_dict.get("Count") if max_dict else None
-                weight = max_dict.get("Weight") if max_dict else 0
+            #     min_count = min_dict.get("Count") if min_dict else None
+            #     max_count = max_dict.get("Count") if max_dict else None
+            #     weight = max_dict.get("Weight") if max_dict else 0
 
-                for w_start in range(region_start, region_end + 1, 7):
-                    w_end = min(w_start + 6, region_end)
-                    work_days = sum(1 for s in shift_labels[w_start:w_end+1] if s != "OFF")
-                    if min_count and work_days < min_count:
-                        total_penalty += ((min_count - work_days) ** 2) * weight
-                    if max_count and work_days > max_count:
-                        total_penalty += ((work_days - max_count) ** 2) * weight
+            #     for w_start in range(region_start, region_end + 1, 7):
+            #         w_end = min(w_start + 6, region_end)
+            #         work_days = sum(1 for s in shift_labels[w_start:w_end+1] if s != "OFF")
+            #         if min_count and work_days < min_count:
+            #             total_penalty += ((min_count - work_days) ** 2) * weight
+            #         if max_count and work_days > max_count:
+            #             total_penalty += ((work_days - max_count) ** 2) * weight
 
             # Padrões indesejados (ex: N, N, D)
             if pattern:
@@ -132,10 +123,35 @@ def fitness(solution):
                                 match = False
 
                     if match:
-                        total_penalty += weight
+                        penalty += weight
 
-    total_penalty += hard_cover_fulfillment(decoded, cover, start_date, end_date)
-    total_penalty += hard_exceed_contract_hours(decoded, shifts, employees, contracts)
+def fitness(solution):
+    schedule = np.rint(solution).astype(int).reshape((n_employees, n_days))
+    total_penalty = 0
+
+    decoded = decode_solution(
+        solution,
+        employees,
+        start_date,
+        n_days,
+        shift_ids
+    )
+
+    # total_penalty += soft_constraints(schedule)
+
+    # total_penalty += hard_cover_fulfillment(decoded, cover, start_date, end_date)
+
+    total_penalty += hard_max_shifts_from_contract_matrix(schedule, employees, contracts, employee_id_to_index, shift_off_index=shift_id_to_index["OFF"])
+
+    total_penalty += hard_check_bounded_shifts_in_region(
+        schedule_matrix=schedule,
+        employees=employees,
+        contracts=contracts,
+        employee_id_to_index=employee_id_to_index,
+        shift_off_index=shift_id_to_index["OFF"],
+        n_days=n_days,
+    )
+
 
     return total_penalty
 
