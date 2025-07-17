@@ -59,7 +59,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
     if "OFF" not in shifts:
         shifts["OFF"] = {
             "Label": "OFF",
-            "Name": "Folga",
+            "Name": "-",
             "StartTime": None,
             "EndTime": None,
             "Duration": 0.0,
