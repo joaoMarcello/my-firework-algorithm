@@ -161,6 +161,10 @@ if __name__ == '__main__':
     # número de faíscas gaussianas
     parser.add_argument('--fwa_m_hat', type=int, default=5)
 
+    # params para joy factor
+    parser.add_argument('--fwa_j', type=float, default=0.2)
+    parser.add_argument('--fwa_j_hat', type=float, default=0.5)
+
     # número de iterações do algoritmo
     parser.add_argument('--fwa_max_iter', type=int, default=100)
 
@@ -219,7 +223,9 @@ if __name__ == '__main__':
                b = args.fwa_b,
                A_hat = args.fwa_a_hat,
                m_hat= args.fwa_m_hat,
-               max_iter=args.fwa_max_iter)
+               max_iter=args.fwa_max_iter,
+               J=args.fwa_j,
+               J_hat=args.fwa_j_hat)
     
     fwa.set_problem_context(start_date=start_date,
                             n_days=n_days,

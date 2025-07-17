@@ -27,7 +27,7 @@ class FWA:
             np.random.seed(seed)
             random.seed(seed)
 
-    def config(self, n=5, m=50, a=0.04, b=0.8, A_hat=40, m_hat=5, max_iter=100):
+    def config(self, n=5, m=50, a=0.04, b=0.8, A_hat=40, m_hat=5, max_iter=100, J=0.2, J_hat=0.5):
         self.n = n
         self.m = m
         self.a = a
@@ -35,6 +35,8 @@ class FWA:
         self.A_hat = A_hat
         self.m_hat = m_hat
         self.max_iter = max_iter
+        self.J = J
+        self.J_hat = J_hat
 
     def set_problem_context(self, start_date, n_days, n_employees, shift_id_to_index, shift_ids):
         self.start_date = start_date
@@ -44,7 +46,10 @@ class FWA:
         self.shift_ids = shift_ids
 
     
-    def apply_joy_factor(self, J, J_hat):
+    def apply_joy_factor(self):
+        J = self.J
+        J_hat = self.J_hat
+
         if J == 0 or J_hat == 0:
             return
 
@@ -144,7 +149,7 @@ class FWA:
 
         self.history.append(self.best_value)
 
-        self.apply_joy_factor(J=0.2, J_hat=0.5)
+        self.apply_joy_factor()
 
 
     def explode(self, fw, s_i, A_i):
