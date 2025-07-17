@@ -22,53 +22,46 @@ def decode_solution(solution, employees, start_date, n_days, shift_ids):
 
 
 # 1. Cobertura obrigatória
-def hard_cover_fulfillment(decoded_solution, cover_requirements, start_date, end_date):
-    from collections import Counter
-    from datetime import timedelta
-
+def hard_cover_fulfillment(schedule, cover_requirements, start_date, shift_id_to_index, cover_weights, n_days):
     penalty = 0
-    current_date = start_date
-    while current_date <= end_date:
-        weekday = current_date.strftime('%A')
-        required = cover_requirements.get(weekday, {})
-        assigned = Counter()
 
-        for schedule in decoded_solution.values():
-            shift_id = schedule.get(current_date)
-            if shift_id != "OFF":
-                assigned[shift_id] += 1
+    # Para cada dia da janela
+    for day_offset in range(n_days):
+        current_date = start_date + timedelta(days=day_offset)
+        day_name = current_date.strftime("%A")  # "Monday", "Tuesday", etc
+        
+        # Cobertura exigida para esse dia da semana
+        day_cover = cover_requirements.get(day_name, {})
+        
+        # Contagem de enfermeiros escalados por turno
+        # Inicializa contagem zerada para cada turno
+        scheduled_counts = {shift_id: 0 for shift_id in day_cover.keys()}
+        
+        for emp_idx in range(schedule.shape[0]):
+            shift_idx = schedule[emp_idx, day_offset]
+            # Pega o shift_id a partir do índice do turno
+            shift_id = None
+            for sid, idx in shift_id_to_index.items():
+                if idx == shift_idx:
+                    shift_id = sid
+                    break
 
-        for shift_id, demand in required.items():
-            amount = abs(demand - assigned[shift_id])
+            if shift_id in scheduled_counts:
+                scheduled_counts[shift_id] += 1
 
-            if assigned[shift_id] < demand:
-                penalty += (demand - assigned[shift_id]) * 1000
-            elif assigned[shift_id] > demand:
-                penalty += amount * 1000
+        # Calcula penalidades para esse dia
+        for shift_id, required in day_cover.items():
+            scheduled = scheduled_counts.get(shift_id, 0)
+            if scheduled < required:
+                diff = required - scheduled
+                # penalty += diff * cover_weights.get("PrefUnderStaffing", 10000)
+                penalty += cover_weights.get("PrefUnderStaffing", 10000)
+            elif scheduled > required:
+                diff = scheduled - required
+                # penalty += diff * cover_weights.get("PrefOverStaffing", 10000)
+                penalty += cover_weights.get("PrefOverStaffing", 10000)
 
-
-        current_date += timedelta(days=1)
     return penalty
-
-
-# # Limite de horas +4h do contrato
-# def hard_exceed_contract_hours(decoded_solution, shifts, employees, contracts):
-#     penalty = 0
-#     for emp_id, schedule in decoded_solution.items():
-#         contract_id = employees[emp_id]["ContractID"]
-#         contract_rules = contracts[contract_id]
-#         max_minutes = 0
-
-#         for rule in contract_rules:
-#             if rule["Max"]["Label"] == "TotalMinutes":
-#                 max_minutes = rule["Max"]["Count"]
-#                 break
-
-#         total_hours = sum(shifts[shift]["Duration"] for shift in schedule.values() if shift != "OFF")
-#         allowed_hours = (max_minutes / 60.0) + 4
-#         if total_hours > allowed_hours:
-#             penalty += int((total_hours - allowed_hours) * 100)
-#     return penalty
 
 
 # # Checa se extrapolou a quantidade de turnos (pega a informação do contrato)
