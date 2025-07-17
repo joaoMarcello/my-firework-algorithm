@@ -1,3 +1,4 @@
+from datetime import timedelta
 import json
 import os
 import random
@@ -20,6 +21,7 @@ class FWA:
         self.history = []
         self.selection_method = selection_method
         self.n = None
+        self.current_iter = 0
 
         if seed is not None:
             np.random.seed(seed)
@@ -34,6 +36,48 @@ class FWA:
         self.m_hat = m_hat
         self.max_iter = max_iter
 
+    def set_problem_context(self, start_date, n_days, n_employees, shift_id_to_index, shift_ids):
+        self.start_date = start_date
+        self.n_days = n_days
+        self.n_employees = n_employees
+        self.shift_id_to_index = shift_id_to_index
+        self.shift_ids = shift_ids
+
+    
+    def apply_joy_factor(self, J, J_hat):
+        if J == 0 or J_hat == 0:
+            return
+
+        if not hasattr(self, "start_date"):
+            raise ValueError("Você precisa configurar o contexto do problema com set_problem_context().")
+
+        n_mutate = max(1, int(self.n * J))
+        mutate_indices = np.random.choice(len(self.fireworks), size=n_mutate, replace=False)
+
+        # Pré-computar os índices dos dias que são sábado (5) ou domingo (6)
+        weekend_days = [
+            day for day in range(self.n_days)
+            if (self.start_date + timedelta(days=day)).weekday() in [5, 6]
+        ]
+
+        # Índice do turno de folga
+        off_index = self.shift_id_to_index.get("OFF", 0)
+
+        for idx in mutate_indices:
+            fw = self.fireworks[idx]
+            schedule = np.rint(fw).astype(int).reshape((self.n_employees, self.n_days))
+
+            # Gera máscara booleana aleatória para finais de semana
+            mutation_mask = np.random.rand(self.n_employees, len(weekend_days)) < J_hat
+
+            # Aplica OFF nos finais de semana conforme a máscara
+            for i, day in enumerate(weekend_days):
+                schedule[:, day][mutation_mask[:, i]] = off_index
+
+            # Atualiza firework original
+            self.fireworks[idx] = schedule.flatten().astype(float)
+
+
     def init_fireworks(self):
         self.fireworks = [
             np.random.uniform(low=[b[0] for b in self.bounds],
@@ -46,12 +90,20 @@ class FWA:
 
     def run(self, verbose=False, log_freq=10):
         self.init_fireworks()
+        self.current_iter = 0
         pbar = trange(self.max_iter, desc="FWA", dynamic_ncols=True)
         for i in pbar:
             self.iter()
+            self.current_iter += 1
             pbar.set_description(f"FWA {self.best_value:.0f}")
             if verbose and (i % log_freq == 0 or i == self.max_iter - 1):
                 print(f"Iter {i}: best = {self.best_value}")
+
+    def get_dynamic_amplitude(self):
+        initial = self.A_hat
+        final = 0.2  # amplitude mínima no fim
+        decay_rate = self.current_iter / (self.max_iter - 1 + 1e-8)
+        return initial * (1 - decay_rate) + final * decay_rate
 
 
     def iter(self):
@@ -71,7 +123,12 @@ class FWA:
             # cálculo da amplitude da explosão. vai ser maior para fogos
             # com fitness ruins (vão explorar mais) e menor para fogos 
             # com fitness bons (busca será mais local)
-            A_i = self.A_hat * (f_values[i] - ymin + 1e-12) / amplitude_denom
+
+            # A_i = self.A_hat * (f_values[i] - ymin + 1e-12) / amplitude_denom
+
+            A_dynamic = self.get_dynamic_amplitude()
+            A_i = A_dynamic * (f_values[i] - ymin + 1e-12) / amplitude_denom
+
 
             sparks += self.explode(fw, s_i, A_i)
 
@@ -86,6 +143,9 @@ class FWA:
             self.best_value = best_val
 
         self.history.append(self.best_value)
+
+        self.apply_joy_factor(J=0.2, J_hat=0.5)
+
 
     def explode(self, fw, s_i, A_i):
         results = []
@@ -186,23 +246,30 @@ class FWA:
 
     
     def __select_roulette(self, candidates):
-        f_vals = [self.func(x) for x in candidates]
+        f_vals = np.array([self.func(x) for x in candidates])
         best_idx = np.argmin(f_vals)
         best = candidates[best_idx]
 
-        fitness_inv = np.max(f_vals) - np.array(f_vals) + 1e-12
+        # Inverso da aptidão
+        fitness_inv = np.max(f_vals) - f_vals + 1e-12
+
+        # Zera a probabilidade do melhor (elitismo garantido fora da roleta)
+        fitness_inv[best_idx] = 0.0
+
+        # Renormaliza as probabilidades
         probs = fitness_inv / fitness_inv.sum()
-        indices = np.arange(len(candidates))
 
-        # evitar duplicar o melhor
-        chosen = [i for i in np.random.choice(indices, self.n - 1, p=probs, replace=False) if i != best_idx]
-        while len(chosen) < self.n - 1:
-            i = np.random.choice(indices, p=probs)
-            if i != best_idx and i not in chosen:
-                chosen.append(i)
+        # Escolhe n - 1 sem repetição
+        remaining_indices = np.random.choice(
+            np.arange(len(candidates)),
+            size=self.n - 1,
+            replace=False,
+            p=probs
+        )
 
-        selected = [best] + [candidates[i] for i in chosen]
+        selected = [best] + [candidates[i] for i in remaining_indices]
         return selected
+
     
     def __select_tournament(self, candidates):
         f_vals = [self.func(x) for x in candidates]
