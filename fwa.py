@@ -138,6 +138,9 @@ class FWA:
             sparks += self.explode(fw, s_i, A_i)
 
         sparks += self.gaussian_explode()
+        
+        # sparks += self.shift_flip_explosion()
+
         self.fireworks = self.select(sparks + self.fireworks)
         best = min(self.fireworks, key=self.func)
 
@@ -167,17 +170,45 @@ class FWA:
 
     def gaussian_explode(self):
         results = []
-        for _ in range(self.m_hat):
+        for _ in range(self.m_hat):  # número de faíscas gaussianas
+
+            # escolhe um firework existente aleatoriamente
+            fw = random.choice(self.fireworks) 
+
+            # cria uma cópia (para não alterar o original)
+            spark = np.copy(fw)
+
+            # número de dimensões a alterar (entre 1 e dim)
+            z = np.random.randint(1, self.dim + 1)  
+
+            # seleciona quais dimensões mudar
+            idx = np.random.choice(self.dim, z, replace=False)  
+
+            g = norm.rvs(loc=1, scale=1)  # G ~ N(1, 1)
+            for k in idx:
+                spark[k] *= g  # x' = x * G
+                spark[k] = self.clip(spark[k], self.bounds[k])  # garante que está nos limites
+            results.append(spark)  # adiciona a nova faísca
+        return results
+    
+
+    def shift_flip_explosion(self):
+        results = []
+        for _ in range(self.m_hat):  # número de novas faíscas desse tipo
             fw = random.choice(self.fireworks)
             spark = np.copy(fw)
             z = np.random.randint(1, self.dim + 1)
             idx = np.random.choice(self.dim, z, replace=False)
-            g = norm.rvs(loc=1, scale=1)
+
             for k in idx:
-                spark[k] *= g
+                flip = 0.5 * random.choice([-2, -1, 0, 1, 2])
+                spark[k] += flip
                 spark[k] = self.clip(spark[k], self.bounds[k])
+
             results.append(spark)
         return results
+
+
 
 
     # def clip(self, val, bound):
