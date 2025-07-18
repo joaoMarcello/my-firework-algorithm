@@ -286,7 +286,7 @@ class FWA:
         candidates = np.array(candidates)
 
         if self.selection_method == 'distance':
-            return self.__select_distance(candidates)
+            return self.__select_distance_v2(candidates)
         elif self.selection_method == 'roulette':
             return self.__select_roulette(candidates)
         elif self.selection_method == 'tournament':
@@ -296,37 +296,71 @@ class FWA:
         
     def __select_distance(self, candidates):
         f_vals = [self.func(x) for x in candidates]
-        best_idx = np.argmin(f_vals)
+
+        # Elitismo: seleciona aleatoriamente um dos melhores em caso de empate
+        best_val = np.min(f_vals)
+        best_indices = [i for i, f in enumerate(f_vals) if f == best_val]
+        best_idx = np.random.choice(best_indices)
         best = candidates[best_idx]  # elitismo
 
         # Cálculo eficiente das distâncias entre candidatos
         distances = cdist(candidates, candidates).sum(axis=1)
         probs = distances / distances.sum()
 
-        indices = np.arange(len(candidates))
-        valid_indices = [i for i in indices if i != best_idx]
-
-        if len(valid_indices) == 0:
-            raise ValueError("Nenhum candidato disponível além do melhor.")
-
-        probs_filtered = probs[valid_indices]
-        probs_filtered /= probs_filtered.sum()
+        # Remove o melhor selecionado da lista para evitar repetição
+        candidates_wo_best = [candidates[i] for i in range(len(candidates)) if i != best_idx]
+        probs = np.delete(probs, best_idx)
 
         selected = [best]  # sempre mantemos o melhor
 
-        if len(valid_indices) < self.n - 1:
+        if len(candidates_wo_best) < self.n - 1:
             # Poucos candidatos viáveis: permitimos repetição com ruído
-            chosen = np.random.choice(valid_indices, self.n - 1, replace=True)
+            chosen = np.random.choice(len(candidates_wo_best), self.n - 1, replace=True)
             for i in chosen:
-                spark = np.copy(candidates[i])
+                spark = np.copy(candidates_wo_best[i])
                 noise = np.random.normal(loc=0, scale=0.2, size=spark.shape)  # ruído suave
                 spark += noise
                 spark = np.clip(spark, [b[0] for b in self.bounds], [b[1] for b in self.bounds])
                 selected.append(spark)
         else:
             # Seleção por diversidade sem repetição
-            chosen = np.random.choice(valid_indices, self.n - 1, p=probs_filtered, replace=False)
-            selected += [candidates[i] for i in chosen]
+            probs /= probs.sum()
+            chosen = np.random.choice(len(candidates_wo_best), self.n - 1, p=probs, replace=False)
+            selected += [candidates_wo_best[i] for i in chosen]
+
+        return selected
+
+    def __select_distance_v2(self, candidates):
+        f_vals = [self.func(x) for x in candidates]
+
+        # Elitismo: seleciona aleatoriamente um dos melhores em caso de empate
+        best_val = np.min(f_vals)
+        best_indices = [i for i, f in enumerate(f_vals) if f == best_val]
+        best_idx = np.random.choice(best_indices)
+        best = candidates[best_idx]  # elitismo
+
+        # Cálculo eficiente das distâncias entre candidatos
+        distances = cdist(candidates, candidates).sum(axis=1)
+        if distances.sum() == 0:
+            probs = np.ones(len(distances)) / len(distances)
+        else:
+            probs = distances / distances.sum()
+
+        # Remove o melhor selecionado da lista para evitar repetição
+        candidates_wo_best = [candidates[i] for i in range(len(candidates)) if i != best_idx]
+        probs = np.delete(probs, best_idx)
+
+        # Normaliza as probabilidades de seleção
+        if probs.sum() == 0:
+            probs = np.ones_like(probs) / len(probs)
+        else:
+            probs /= probs.sum()
+
+        selected = [best]  # sempre mantemos o melhor
+
+        # Seleção por diversidade sem repetição
+        chosen = np.random.choice(len(candidates_wo_best), self.n - 1, p=probs, replace=False)
+        selected += [candidates_wo_best[i] for i in chosen]
 
         return selected
 
