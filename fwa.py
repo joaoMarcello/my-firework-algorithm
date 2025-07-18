@@ -142,9 +142,9 @@ class FWA:
 
 
     def run(self, verbose=False, log_freq=10):
-        self.init_fireworks()
-        # self.init_fireworks_smart(smart_ratio=0.5)
-        
+        # self.init_fireworks()
+        self.init_fireworks_smart(smart_ratio=0.5)
+
         self.current_iter = 0
         pbar = trange(self.max_iter, desc="FWA", dynamic_ncols=True)
         for i in pbar:
