@@ -6,6 +6,7 @@ import numpy as np
 # Cobertura obrigatória
 def hard_cover_fulfillment(schedule, cover_requirements, start_date, shift_id_to_index, cover_weights, n_days):
     penalty = 0
+    off_shift_idx = shift_id_to_index.get('OFF', -1)
 
     # Para cada dia da janela
     for day_offset in range(n_days):
@@ -21,6 +22,10 @@ def hard_cover_fulfillment(schedule, cover_requirements, start_date, shift_id_to
         
         for emp_idx in range(schedule.shape[0]):
             shift_idx = schedule[emp_idx, day_offset]
+
+            if shift_idx == off_shift_idx:
+                continue  # pula enfermeiros em folga
+            
             # Pega o shift_id a partir do índice do turno
             shift_id = None
             for sid, idx in shift_id_to_index.items():
@@ -48,6 +53,7 @@ def hard_cover_fulfillment(schedule, cover_requirements, start_date, shift_id_to
 def hard_cover_fulfillment_v2(schedule, cover_requirements, start_date, shift_id_to_index, cover_weights, n_days):
     penalty = 0
     index_to_shift_id = {v: k for k, v in shift_id_to_index.items()}  # Inverso
+    off_shift_idx = shift_id_to_index.get('OFF', -1)
 
     under_penalty = cover_weights.get("PrefUnderStaffing", 10000)
     over_penalty = cover_weights.get("PrefOverStaffing", 10000)
@@ -61,7 +67,7 @@ def hard_cover_fulfillment_v2(schedule, cover_requirements, start_date, shift_id
 
         for emp_idx in range(schedule.shape[0]):
             shift_idx = schedule[emp_idx, day_offset]
-            if shift_idx == -1:
+            if shift_idx == off_shift_idx:
                 continue  # Folga
 
             shift_id = index_to_shift_id.get(shift_idx)
