@@ -20,8 +20,8 @@ class DiscreteFWA(FWA):
             idx = np.random.choice(self.dim, z, replace=False)
             for k in idx:
                 delta = int(round(A_i * np.random.uniform(-1, 1)))
-                if delta == 0:
-                    delta = random.choice([-1, 1])
+                # if delta == 0:
+                #     delta = random.choice([-1, 1])
                 spark[k] += delta
                 spark[k] = int(round(self.clip(spark[k], self.bounds[k])))
             results.append(spark)
@@ -49,7 +49,16 @@ class DiscreteFWA(FWA):
         elif val > max_b:
             return max_b
         return val
-
+    
+    # def clip(self, val, bound):
+    #     min_b, max_b = bound
+    #     min_b = int(np.ceil(min_b))
+    #     max_b = int(np.floor(max_b))
+    #     val = int(round(val))
+    #     size = max_b - min_b + 1
+    #     val = (val - min_b) % size + min_b
+    #     return val
+    
     def init_fireworks(self):
         self.fireworks = [
             np.array([np.random.randint(b[0], b[1] + 1) for b in self.bounds])
