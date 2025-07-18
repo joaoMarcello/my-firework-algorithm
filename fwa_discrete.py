@@ -127,6 +127,7 @@ class DiscreteFWA(FWA):
                 for d in extra_offs:
                     schedule[emp, d] = off_index
 
+            self.apply_shift_on_requests(schedule)
             self.fireworks.append(schedule.flatten())
 
         # Gera o restante da população de forma totalmente aleatória (mas discreta)
@@ -137,6 +138,7 @@ class DiscreteFWA(FWA):
                 # Turnos aleatórios entre os shift_ids válidos, incluindo OFF
                 schedule[emp] = np.random.choice(range(len(self.shift_ids)), size=self.n_days)
 
+            self.apply_shift_on_requests(schedule)
             self.fireworks.append(schedule.flatten())
 
 

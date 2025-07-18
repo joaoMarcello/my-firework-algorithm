@@ -42,12 +42,13 @@ class FWA:
         self.J_hat = J_hat
         self.__A_dynamic = self.A_hat
 
-    def set_problem_context(self, start_date, n_days, n_employees, shift_id_to_index, shift_ids):
+    def set_problem_context(self, start_date, n_days, n_employees, shift_id_to_index, shift_ids, shift_on_request):
         self.start_date = start_date
         self.n_days = n_days
         self.n_employees = n_employees
         self.shift_id_to_index = shift_id_to_index
         self.shift_ids = shift_ids
+        self.shift_on_request = shift_on_request
 
     
     def apply_joy_factor(self):
@@ -97,6 +98,21 @@ class FWA:
         self.best_value = self.func(self.best_solution)
         self.history.append(self.best_value)
 
+    def apply_shift_on_requests(self, schedule):
+        """
+        Aplica os ShiftOnRequests às escalas de forma a atender às preferências positivas dos funcionários.
+        `schedule` deve estar no formato (n_employees, n_days).
+        """
+        for req in self.shift_on_requests:
+            emp_id = self.employee_id_to_index.get(req['EmployeeID'])
+            day = (req['Date'] - self.start_date).days
+            shift_id = req['ShiftID']
+            shift_idx = self.shift_id_to_index.get(shift_id)
+
+            if 0 <= emp_id < self.n_employees and 0 <= day < self.n_days and shift_idx is not None:
+                schedule[emp_id, day] = shift_idx
+
+
     def init_fireworks_smart(self, smart_ratio=0.7):
         assert hasattr(self, "n_employees") and hasattr(self, "n_days"), \
             "Use set_problem_context() antes de usar init_fireworks_smart()."
@@ -130,6 +146,7 @@ class FWA:
                 for d in extra_offs:
                     schedule[emp, d] = off_index
 
+            self.apply_shift_on_requests(schedule)
             self.fireworks.append(schedule.flatten())
 
         # Gera o restante da população de forma totalmente aleatória
@@ -138,6 +155,7 @@ class FWA:
                 low=[b[0] for b in self.bounds],
                 high=[b[1] for b in self.bounds]
             )
+            self.apply_shift_on_requests(schedule)
             self.fireworks.append(random_firework)
 
         self.best_solution = min(self.fireworks, key=self.func)
