@@ -24,11 +24,11 @@
 #   --fwa_select_mode roulette
 
 python main_nsp.py \
-  --xml_path data/ORTEC01.xml \
-  --save_file results_tests_18-07_discrete/fwa_nsp_run_05 \
+  --xml_path data/ORTEC02.xml \
+  --save_file results_valendo_discrete_ortec_2/fwa_nsp_run_01 \
   --fwa_n 20 \
   --fwa_m 70 \
-  --fwa_a 0.03 \
+  --fwa_a 0.0 \
   --fwa_b 0.8 \
   --fwa_a_hat 4 \
   --fwa_m_hat 5 \
