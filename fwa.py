@@ -93,8 +93,58 @@ class FWA:
         self.best_value = self.func(self.best_solution)
         self.history.append(self.best_value)
 
+    def init_fireworks_smart(self, smart_ratio=0.7):
+        assert hasattr(self, "n_employees") and hasattr(self, "n_days"), \
+            "Use set_problem_context() antes de usar init_fireworks_smart()."
+
+        self.fireworks = []
+
+        off_index = self.shift_id_to_index.get("OFF", 4)
+        available_shift_ids = [i for i in range(len(self.shift_ids)) if i != off_index]
+
+        n_smart = int(self.n * smart_ratio)
+        n_random = self.n - n_smart
+
+        for _ in range(n_smart):
+            schedule = np.zeros((self.n_employees, self.n_days), dtype=float)
+
+            for emp in range(self.n_employees):
+                # Atribui todos os dias com turnos aleatórios (sem OFF)
+                schedule[emp] = np.random.choice(available_shift_ids, size=self.n_days)
+
+                # Define 1 folga em sábado ou domingo
+                weekend_days = [d for d in range(self.n_days)
+                                if (self.start_date + timedelta(days=d)).weekday() in [5, 6]]
+                if weekend_days:
+                    off_day = random.choice(weekend_days)
+                    schedule[emp, off_day] = off_index
+
+                # Define +2 folgas aleatórias em dias que ainda não são OFF
+                working_days = [d for d in range(self.n_days)
+                                if schedule[emp, d] != off_index]
+                extra_offs = random.sample(working_days, k=min(2, len(working_days)))
+                for d in extra_offs:
+                    schedule[emp, d] = off_index
+
+            self.fireworks.append(schedule.flatten())
+
+        # Gera o restante da população de forma totalmente aleatória
+        for _ in range(n_random):
+            random_firework = np.random.uniform(
+                low=[b[0] for b in self.bounds],
+                high=[b[1] for b in self.bounds]
+            )
+            self.fireworks.append(random_firework)
+
+        self.best_solution = min(self.fireworks, key=self.func)
+        self.best_value = self.func(self.best_solution)
+        self.history.append(self.best_value)
+
+
     def run(self, verbose=False, log_freq=10):
         self.init_fireworks()
+        # self.init_fireworks_smart(smart_ratio=0.5)
+        
         self.current_iter = 0
         pbar = trange(self.max_iter, desc="FWA", dynamic_ncols=True)
         for i in pbar:
@@ -356,6 +406,8 @@ class FWA:
                 "m_hat": self.m_hat,
                 "max_iter": self.max_iter,
                 "dim": self.dim,
+                "J" : self.J,
+                "J_hat" : self.J_hat,
                 # "bounds": [list(b) for b in self.bounds]
             }
         }
