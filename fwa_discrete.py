@@ -20,6 +20,8 @@ class DiscreteFWA(FWA):
             idx = np.random.choice(self.dim, z, replace=False)
             for k in idx:
                 delta = int(round(A_i * np.random.uniform(-1, 1)))
+                if delta == 0:
+                    delta = random.choice([-1, 1])
                 spark[k] += delta
                 spark[k] = int(round(self.clip(spark[k], self.bounds[k])))
             results.append(spark)
