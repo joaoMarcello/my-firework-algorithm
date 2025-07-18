@@ -36,12 +36,12 @@ def hard_cover_fulfillment(schedule, cover_requirements, start_date, shift_id_to
             scheduled = scheduled_counts.get(shift_id, 0)
             if scheduled < required:
                 diff = required - scheduled
-                # penalty += diff * cover_weights.get("PrefUnderStaffing", 10000)
-                penalty += cover_weights.get("PrefUnderStaffing", 10000)
+                penalty += diff * cover_weights.get("PrefUnderStaffing", 10000)
+                # penalty += cover_weights.get("PrefUnderStaffing", 10000)
             elif scheduled > required:
                 diff = scheduled - required
-                # penalty += diff * cover_weights.get("PrefOverStaffing", 10000)
-                penalty += cover_weights.get("PrefOverStaffing", 10000)
+                penalty += diff * cover_weights.get("PrefOverStaffing", 10000)
+                # penalty += cover_weights.get("PrefOverStaffing", 10000)
 
     return penalty
 
