@@ -1,3 +1,32 @@
+import itertools
+
+def expand_pattern(pattern_elements, shift_groups):
+    """
+    Expande um padrão ORTEC com elementos <Shift> e <ShiftGroup> em todas as combinações possíveis.
+    Retorna uma lista de strings com os padrões expandidos, usando '-' para 'OFF'.
+    """
+    symbol_options = []
+
+    for el in pattern_elements:
+        if "Shift" in el:
+            shift = el["Shift"]
+            symbol = "-" if shift.upper() == "OFF" else shift
+            symbol_options.append([symbol])
+        elif "ShiftGroup" in el:
+            group_id = el["ShiftGroup"]
+            group_shifts = shift_groups.get(group_id, [])
+            group_symbols = ["-" if s.upper() == "OFF" else s for s in group_shifts]
+            symbol_options.append(group_symbols)
+        else:
+            # Se o XML contiver algo inesperado
+            symbol_options.append(["?"])
+
+    # Produto cartesiano para formar todas as combinações possíveis
+    combinations = itertools.product(*symbol_options)
+    expanded = ["".join(seq) for seq in combinations]
+    return expanded
+
+
 def load_data(xml_path: str ='ORTEC01.xml'):
     import xml.etree.ElementTree as ET
     from collections import defaultdict
@@ -132,6 +161,8 @@ def load_data(xml_path: str ='ORTEC01.xml'):
                     for el in pat:
                         pat_dict[el.tag] = el.text
                     rule["Pattern"].append(pat_dict)
+
+                rule["ExpandedPatterns"] = expand_pattern(rule["Pattern"], shift_groups)
 
                 rules.append(rule)
 
