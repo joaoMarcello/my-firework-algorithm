@@ -5,6 +5,7 @@ import random
 import numpy as np
 
 from fwa import FWA
+from fwa_discrete import DiscreteFWA
 from utils import load_data
 from constraints.hard_constraints import *
 from constraints.soft_constraints import *
@@ -123,7 +124,7 @@ if __name__ == '__main__':
     solution_size = n_employees * n_days
     bounds = [(0 - 0.5, n_shift_types - 1 + 0.5)] * solution_size  # cada valor representa um turno possível
 
-    fwa = FWA(func=fitness, 
+    fwa = DiscreteFWA(func=fitness, 
               dim=solution_size, 
               bounds=bounds, 
               selection_method=args.fwa_select_mode,
