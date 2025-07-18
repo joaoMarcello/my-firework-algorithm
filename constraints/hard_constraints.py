@@ -3,25 +3,7 @@ import re
 
 import numpy as np
 
-def decode_solution(solution, employees, start_date, n_days, shift_ids):
-    n_employees = len(employees)
-    employee_ids = list(employees.keys())
-
-    # Aplica o mesmo processamento do seu código principal
-    schedule = np.rint(solution).astype(int).reshape((n_employees, n_days))
-
-    decoded = {}
-    for emp_idx, emp_id in enumerate(employee_ids):
-        decoded[emp_id] = {}
-        for day_idx in range(n_days):
-            date = start_date + timedelta(days=day_idx)
-            shift_index = schedule[emp_idx, day_idx]
-            shift_index = max(0, min(shift_index, len(shift_ids) - 1))  # segurança de índice
-            decoded[emp_id][date] = shift_ids[shift_index]
-    return decoded
-
-
-# 1. Cobertura obrigatória
+# Cobertura obrigatória
 def hard_cover_fulfillment(schedule, cover_requirements, start_date, shift_id_to_index, cover_weights, n_days):
     penalty = 0
 
@@ -63,34 +45,8 @@ def hard_cover_fulfillment(schedule, cover_requirements, start_date, shift_id_to
 
     return penalty
 
-
-# # Checa se extrapolou a quantidade de turnos (pega a informação do contrato)
-# def hard_max_shifts_from_contract(decoded_solution, employees, contracts):
-#     penalty = 0
-
-#     for emp_id, schedule in decoded_solution.items():
-#         contract_id = employees[emp_id]["ContractID"]
-#         contract_rules = contracts[contract_id]
-
-#         for rule in contract_rules:
-#             label = str(rule.get("Max", {}).get("Label", ""))
-#             match = re.match(r"Max (\d+) shifts", label)
-
-#             if match:
-#                 max_shifts = int(rule["Max"]["Count"])  # ou: int(match.group(1))
-#                 weight = int(rule["Max"]["Weight"])
-
-#                 # Conta turnos (exceto "OFF") no mês
-#                 worked_days = sum(1 for shift in schedule.values() if shift != "OFF")
-
-#                 if worked_days > max_shifts:
-#                     excess = worked_days - max_shifts
-#                     penalty += excess * weight
-
-#     return penalty
-
 # Checa se extrapolou a quantidade de turnos (pega a informação do contrato)
-def hard_max_shifts_from_contract_matrix(schedule_matrix, employees, contracts, employee_id_to_index, shift_off_index):
+def hard_max_shifts_from_contract(schedule_matrix, employees, contracts, employee_id_to_index, shift_off_index):
     penalty = 0
 
     for emp_id, emp_data in employees.items():
@@ -170,20 +126,3 @@ def hard_check_bounded_shifts_in_region(
 
     return int(penalty)
 
-
-"""
-4. A média de 36h semanais (13 semanas sem noite)
-Como você ainda não lida com semanas/13 semanas/
-turnos noturnos explicitamente, vamos deixar isso 
-para depois ou definir turnos noturnos via
-Exemplo: se o turno começa após 22h ou termina antes de 6h
-"""
-
-def is_night_shift(shift):
-    start = shift["StartTime"]
-    end = shift["EndTime"]
-    if not start or not end:
-        return False
-    h1 = int(start.split(":")[0])
-    h2 = int(end.split(":")[0])
-    return h1 >= 22 or h2 <= 6

@@ -37,7 +37,7 @@ def fitness(solution):
 
     total_penalty += hard_cover_fulfillment(schedule, cover, start_date, shift_id_to_index, cover_weights, n_days)
 
-    total_penalty += hard_max_shifts_from_contract_matrix(schedule, employees, contracts, employee_id_to_index, shift_off_index=shift_id_to_index["OFF"])
+    total_penalty += hard_max_shifts_from_contract(schedule, employees, contracts, employee_id_to_index, shift_off_index=shift_id_to_index["OFF"])
 
     total_penalty += hard_check_bounded_shifts_in_region(
         schedule_matrix=schedule,
