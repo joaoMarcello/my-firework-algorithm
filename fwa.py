@@ -42,13 +42,14 @@ class FWA:
         self.J_hat = J_hat
         self.__A_dynamic = self.A_hat
 
-    def set_problem_context(self, start_date, n_days, n_employees, shift_id_to_index, shift_ids, shift_on_request):
+    def set_problem_context(self, start_date, n_days, n_employees, shift_id_to_index, shift_ids, shift_on_request, employee_id_to_index):
         self.start_date = start_date
         self.n_days = n_days
         self.n_employees = n_employees
         self.shift_id_to_index = shift_id_to_index
         self.shift_ids = shift_ids
-        self.shift_on_request = shift_on_request
+        self.shift_on_requests = shift_on_request
+        self.employee_id_to_index = employee_id_to_index
 
     
     def apply_joy_factor(self):
@@ -101,16 +102,23 @@ class FWA:
     def apply_shift_on_requests(self, schedule):
         """
         Aplica os ShiftOnRequests às escalas de forma a atender às preferências positivas dos funcionários.
-        `schedule` deve estar no formato (n_employees, n_days).
+        Cada entrada da lista shift_on_requests deve conter: 'EmployeeID', 'Date', 'ShiftTypeID', 'Weight'.
         """
         for req in self.shift_on_requests:
             emp_id = self.employee_id_to_index.get(req['EmployeeID'])
             day = (req['Date'] - self.start_date).days
-            shift_id = req['ShiftID']
-            shift_idx = self.shift_id_to_index.get(shift_id)
+            shift_symbol = req.get('ShiftTypeID')
 
-            if 0 <= emp_id < self.n_employees and 0 <= day < self.n_days and shift_idx is not None:
+            shift_idx = self.shift_id_to_index.get(shift_symbol)
+
+            if (
+                emp_id is not None and
+                0 <= emp_id < self.n_employees and
+                0 <= day < self.n_days and
+                shift_idx is not None
+            ):
                 schedule[emp_id, day] = shift_idx
+
 
 
     def init_fireworks_smart(self, smart_ratio=0.7):

@@ -137,7 +137,8 @@ if __name__ == '__main__':
                             n_employees=n_employees,
                             shift_id_to_index=shift_id_to_index,
                             shift_ids=shift_ids,
-                            shift_on_request=on_reqs)
+                            shift_on_request=on_reqs,
+                            employee_id_to_index=employee_id_to_index)
 
     fwa.run()
     fwa.save_to_disc(path=args.save_file + '.json')
