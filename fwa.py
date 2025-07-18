@@ -24,6 +24,8 @@ class FWA:
         self.n = None
         self.current_iter = 0
 
+        self.__A_i = 0.0
+
         if seed is not None:
             np.random.seed(seed)
             random.seed(seed)
@@ -38,6 +40,7 @@ class FWA:
         self.max_iter = max_iter
         self.J = J
         self.J_hat = J_hat
+        self.__A_dynamic = self.A_hat
 
     def set_problem_context(self, start_date, n_days, n_employees, shift_id_to_index, shift_ids):
         self.start_date = start_date
@@ -151,7 +154,7 @@ class FWA:
         for i in pbar:
             self.iter()
             self.current_iter += 1
-            pbar.set_description(f"FWA {self.best_value:.0f}")
+            pbar.set_description(f"FWA F={self.best_value:.0f} - A_i={self.__A_i:.8f} - A_dyn={self.__A_dynamic:.2f}")
             if verbose and (i % log_freq == 0 or i == self.max_iter - 1):
                 print(f"Iter {i}: best = {self.best_value}")
 
@@ -184,7 +187,8 @@ class FWA:
 
             A_dynamic = self.get_dynamic_amplitude()
             A_i = A_dynamic * (f_values[i] - ymin + 1e-12) / amplitude_denom
-
+            self.__A_i = A_i
+            self.__A_dynamic = A_dynamic
 
             sparks += self.explode(fw, s_i, A_i)
 
