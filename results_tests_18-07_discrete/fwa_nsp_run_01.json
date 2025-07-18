@@ -1,4 +1,5 @@
 {
+    "_comment" : "Consertei a explosão discreta normal. Ela agora gera uma versão modificada do firework mesmo quando delta for 0",
     "best_solution": [
         4.0,
         4.0,
