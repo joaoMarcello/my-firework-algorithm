@@ -45,6 +45,47 @@ def hard_cover_fulfillment(schedule, cover_requirements, start_date, shift_id_to
 
     return penalty
 
+def hard_cover_fulfillment_v2(schedule, cover_requirements, start_date, shift_id_to_index, cover_weights, n_days):
+    penalty = 0
+    index_to_shift_id = {v: k for k, v in shift_id_to_index.items()}  # Inverso
+
+    under_penalty = cover_weights.get("PrefUnderStaffing", 10000)
+    over_penalty = cover_weights.get("PrefOverStaffing", 10000)
+
+    for day_offset in range(n_days):
+        current_date = start_date + timedelta(days=day_offset)
+        day_name = current_date.strftime("%A")
+        day_cover = cover_requirements.get(day_name, {})
+
+        scheduled_counts = {shift_id: 0 for shift_id in day_cover.keys()}
+
+        for emp_idx in range(schedule.shape[0]):
+            shift_idx = schedule[emp_idx, day_offset]
+            if shift_idx == -1:
+                continue  # Folga
+
+            shift_id = index_to_shift_id.get(shift_idx)
+            if shift_id in scheduled_counts:
+                scheduled_counts[shift_id] += 1
+
+        # Penalidades do dia
+        for shift_id, required in day_cover.items():
+            scheduled = scheduled_counts.get(shift_id, 0)
+            if scheduled < required:
+                diff = required - scheduled
+                p = diff * under_penalty
+                penalty += p
+                # Debug opcional:
+                # print(f"{current_date}: Faltam {diff} em {shift_id}, pena={p}")
+            elif scheduled > required:
+                diff = scheduled - required
+                p = diff * over_penalty
+                penalty += p
+                # print(f"{current_date}: Excedem {diff} em {shift_id}, pena={p}")
+
+    return penalty
+
+
 # Checa se extrapolou a quantidade de turnos (pega a informação do contrato)
 def hard_max_shifts_from_contract(schedule_matrix, employees, contracts, employee_id_to_index, shift_off_index):
     penalty = 0
