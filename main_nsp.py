@@ -146,14 +146,17 @@ if __name__ == '__main__':
                             shift_id_to_index=shift_id_to_index,
                             shift_ids=shift_ids)
 
-    print(n_employees)    
     fwa.run()
     fwa.save_to_disc(path=args.save_file + '.json')
 
     print("Melhor valor encontrado:", fwa.best_value)
 
-
     fwa.plot_history_from_file(json_path=args.save_file + '.json', save_path=args.save_file + '.png')
+
+    fwa.save_excel(filename=args.save_file + '.xlsx')
+
+    # fwa.load_best("results_tests_17-07_discrete/fwa_nsp_run_04_for_real.json")
+    # fwa.save_excel()
 
     # # Decodificando para visualização
     # schedule = np.array(fwa.best_solution, dtype=int).reshape((n_employees, n_days))
