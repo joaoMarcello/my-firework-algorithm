@@ -12,20 +12,46 @@ from tqdm import trange
 from fwa import FWA
 
 class DiscreteFWA(FWA):
+    # def explode(self, fw, s_i, A_i):
+    #     results = []
+    #     for _ in range(s_i):
+    #         spark = np.copy(fw)
+    #         z = np.random.randint(1, self.dim + 1)
+    #         idx = np.random.choice(self.dim, z, replace=False)
+    #         for k in idx:
+    #             delta = int(round(A_i * np.random.uniform(-1, 1)))
+    #             # if delta == 0:
+    #             #     delta = random.choice([-1, 1])
+    #             spark[k] += delta
+    #             spark[k] = int(round(self.clip(spark[k], self.bounds[k])))
+    #         results.append(spark)
+    #     return results
+    
     def explode(self, fw, s_i, A_i):
         results = []
         for _ in range(s_i):
             spark = np.copy(fw)
             z = np.random.randint(1, self.dim + 1)
             idx = np.random.choice(self.dim, z, replace=False)
+            
+            changed = False
             for k in idx:
                 delta = int(round(A_i * np.random.uniform(-1, 1)))
-                # if delta == 0:
-                #     delta = random.choice([-1, 1])
+                if delta != 0:
+                    spark[k] += delta
+                    spark[k] = int(round(self.clip(spark[k], self.bounds[k])))
+                    changed = True
+
+            # se nenhuma dimensão foi alterada, altera pelo menos uma com delta = ±1
+            if not changed:
+                k = np.random.choice(idx)
+                delta = np.random.choice([-1, 1])
                 spark[k] += delta
                 spark[k] = int(round(self.clip(spark[k], self.bounds[k])))
+
             results.append(spark)
         return results
+
 
     def gaussian_explode(self):
         results = []
