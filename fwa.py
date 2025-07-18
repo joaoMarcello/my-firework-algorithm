@@ -8,6 +8,7 @@ import numpy as np
 from scipy.stats import norm
 from scipy.spatial.distance import cdist
 from tqdm import trange
+import pandas as pd
 
 
 class FWA:
@@ -501,4 +502,65 @@ class FWA:
             plt.savefig(save_path, dpi=300)
 
         plt.show()
+    
 
+
+    def save_excel(self, filename="best_schedule.xlsx", shift_colors=None):
+        from openpyxl import load_workbook
+        from openpyxl.styles import PatternFill
+        
+        if self.best_solution is None:
+            raise ValueError("Nenhuma solução encontrada para salvar.")
+        if not hasattr(self, "n_employees") or not hasattr(self, "n_days") or not hasattr(self, "shift_ids"):
+            raise ValueError("Contexto do problema (n_employees, n_days, shift_ids) não configurado.")
+
+        # Cores padrão baseadas no XML do dataset (cores convertidas para HEX)
+        default_shift_colors = {
+            "E": "FF0000",   # Red
+            "D": "32CD32",   # Lime
+            "L": "0000FF",   # Blue
+            "N": "808080",   # Gray
+            "OFF": "FFFFFF"  # Branco para OFF
+        }
+
+        if shift_colors is None:
+            shift_colors = default_shift_colors
+
+        # Converte vetor 1D em matriz (schedule)
+        schedule = np.rint(self.best_solution).astype(int).reshape(self.n_employees, self.n_days)
+
+        # Mapeia índices para labels dos turnos e converte "OFF" para "-"
+        def map_shift_label(idx):
+            label = self.shift_ids[idx]
+            return "-" if label == "OFF" else label
+
+        schedule_str = np.vectorize(map_shift_label)(schedule)
+
+        # Cria DataFrame
+        df = pd.DataFrame(schedule_str, 
+                        index=[f"Employee {i+1}" for i in range(self.n_employees)],
+                        columns=[f"Day {i+1}" for i in range(self.n_days)])
+
+        # Salva dataframe sem estilo
+        df.to_excel(filename, engine="openpyxl")
+
+        # Abre arquivo para edição de estilos
+        wb = load_workbook(filename)
+        ws = wb.active
+
+        # Aplica cor nas células conforme shift_colors
+        for row_idx in range(2, 2 + self.n_employees):
+            for col_idx in range(2, 2 + self.n_days):
+                cell = ws.cell(row=row_idx, column=col_idx)
+                label = cell.value
+
+                # OFF = "-" mantém fundo branco
+                if label == "-":
+                    continue
+
+                color_hex = shift_colors.get(label, "FFFFFF")
+                fill = PatternFill(start_color="FF" + color_hex, end_color="FF" + color_hex, fill_type="solid")
+                cell.fill = fill
+
+        wb.save(filename)
+        print(f"Melhor escala salva em Excel colorido: {filename}")
