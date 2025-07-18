@@ -173,7 +173,7 @@ class FWA:
             # cálculo da quant. de faíscas do fogo atual.
             # fogos com menor fitness geram mais faíscas
             s_i = self.m * (ymax - f_values[i] + 1e-12) / total_diff
-            s_i = max(1, round(np.clip(s_i, self.a * self.m, self.b * self.m)))
+            s_i = round(np.clip(s_i, self.a * self.m, self.b * self.m))
 
             # cálculo da amplitude da explosão. vai ser maior para fogos
             # com fitness ruins (vão explorar mais) e menor para fogos 
