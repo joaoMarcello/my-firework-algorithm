@@ -25,7 +25,7 @@
 
 python main_nsp.py \
   --xml_path data/ORTEC01.xml \
-  --save_file results_tests_17-07_discrete/fwa_nsp_run_04_for_real \
+  --save_file results_tests_17-07_discrete/fwa_nsp_run_05_excel \
   --fwa_n 20 \
   --fwa_m 70 \
   --fwa_a 0.0 \
