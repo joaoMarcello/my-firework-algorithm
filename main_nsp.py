@@ -18,14 +18,6 @@ def fitness(solution):
     schedule = np.rint(solution).astype(int).reshape((n_employees, n_days))
     total_penalty = 0
 
-    # decoded = decode_solution(
-    #     solution,
-    #     employees,
-    #     start_date,
-    #     n_days,
-    #     shift_ids
-    # )
-
     total_penalty += penalize_min_consecutive_free_days_all(schedule, shift_id_to_index["OFF"], employees, contracts)
 
     total_penalty += penalize_max_nights_all_nurses(schedule, employees, contracts, shift_id_to_index)
@@ -144,7 +136,8 @@ if __name__ == '__main__':
                             n_days=n_days,
                             n_employees=n_employees,
                             shift_id_to_index=shift_id_to_index,
-                            shift_ids=shift_ids)
+                            shift_ids=shift_ids,
+                            shift_on_request=on_reqs)
 
     fwa.run()
     fwa.save_to_disc(path=args.save_file + '.json')
