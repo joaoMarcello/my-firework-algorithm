@@ -13,137 +13,40 @@ SEED = 42
 np.random.seed(SEED)
 random.seed(SEED)
 
-def soft_constraints(schedule):
-    penalty = 0
-    # Penalidade por pedidos de folga não atendidos
-    off_idx = shift_id_to_index["OFF"]
-    for req in off_reqs:
-        emp_idx = employee_id_to_index.get(req["EmployeeID"])
-        day_idx = (req["Date"] - start_date).days
-        if emp_idx is not None and 0 <= day_idx < n_days:
-            if schedule[emp_idx, day_idx] != off_idx:
-                penalty += req["Weight"]
-
-    # Penalidade por turnos desejados não atendidos
-    for req in on_reqs:
-        emp_idx = employee_id_to_index.get(req["EmployeeID"])
-        day_idx = (req["Date"] - start_date).days
-        requested_idx = shift_id_to_index.get(req["ShiftTypeID"])
-        if emp_idx is not None and 0 <= day_idx < n_days and requested_idx is not None:
-            if schedule[emp_idx, day_idx] != requested_idx:
-                penalty += req["Weight"]
-
-    # # Penalidade por exceder horas do contrato (+4h tolerância)
-    # for emp_id, emp_idx in employee_id_to_index.items():
-    #     contract_id = employees[emp_id]["ContractID"]
-    #     contract_rules = contracts.get(contract_id, [])
-    #     max_hours = 0
-
-    #     for rule in contract_rules:
-    #         if "Max 36 hours" in str(rule.get("Max", {}).get("Label", "")):
-    #             max_hours = rule["Max"]["Count"]
-    #             break
-
-    #     total_hours = 0.0
-    #     for d in range(n_days):
-    #         shift_idx = schedule[emp_idx, d]
-    #         shift_id = shift_ids[shift_idx]
-    #         duration = float(shifts[shift_id].get("Duration", 0))
-    #         total_hours += duration
-
-    #     if max_hours > 0 and total_hours > max_hours + 4:
-    #         excess = total_hours - (max_hours + 4)
-    #         total_penalty += int(excess) * 10
-
-    # Penalidades de padrões contratuais e turnos por semana
-    for emp_id, emp_idx in employee_id_to_index.items():
-        contract_id = employees[emp_id]["ContractID"]
-        shift_labels = [shift_ids[s] for s in schedule[emp_idx]]
-        rules = contracts.get(contract_id, [])
-
-        for rule in rules:
-            pattern = rule.get("Pattern", [])
-            label = str(rule.get("Max", {}).get("Label", ""))
-            max_count = rule.get("Max", {}).get("Count", None)
-            weight = rule.get("Max", {}).get("Weight", 0)
-
-            if max_count is None:
-                continue
-
-            # Turnos noturnos
-            if "Max 3 nights" in label:
-                night_count = shift_labels.count("N")
-                if night_count > max_count:
-                    penalty += (night_count - max_count) * weight
-
-            # Fins de semana trabalhados
-            elif "Max 3 working weekends" in label:
-                worked_weekends = 0
-                for week in range(0, n_days, 7):
-                    week_shifts = shift_labels[week:week+7]
-                    if any(shift != "OFF" for i, shift in enumerate(week_shifts) if (start_date + timedelta(days=week+i)).weekday() in (5, 6)):
-                        worked_weekends += 1
-                if worked_weekends > max_count:
-                    penalty += (worked_weekends - max_count) * weight
-
-            # Padrões indesejados (ex: N, N, D)
-            if pattern:
-                pattern_len = len(pattern)
-                for i in range(len(shift_labels) - pattern_len + 1):
-                    match = True
-                    for j in range(pattern_len):
-                        pat_el = pattern[j]
-                        shift_at_day = shift_labels[i + j]
-
-                        if "Shift" in pat_el and pat_el["Shift"] != "-" and shift_at_day != pat_el["Shift"]:
-                            match = False
-                        elif "NotShift" in pat_el and shift_at_day == pat_el["NotShift"]:
-                            match = False
-                        elif "ShiftGroup" in pat_el:
-                            if shift_at_day not in shift_groups.get(pat_el["ShiftGroup"], []):
-                                match = False
-
-                    if match:
-                        penalty += weight
-
-    return int(penalty)
-
 def fitness(solution):
     schedule = np.rint(solution).astype(int).reshape((n_employees, n_days))
     total_penalty = 0
 
-    decoded = decode_solution(
-        solution,
-        employees,
-        start_date,
-        n_days,
-        shift_ids
-    )
+    # decoded = decode_solution(
+    #     solution,
+    #     employees,
+    #     start_date,
+    #     n_days,
+    #     shift_ids
+    # )
 
-    # total_penalty += soft_constraints(schedule)
+    total_penalty += penalize_min_consecutive_free_days_all(schedule, shift_id_to_index["OFF"], employees, contracts)
 
-    # total_penalty += penalize_min_consecutive_free_days_all(schedule, shift_id_to_index["OFF"], employees, contracts)
+    total_penalty += penalize_max_nights_all_nurses(schedule, employees, contracts, shift_id_to_index)
 
-    # total_penalty += penalize_max_nights_all_nurses(schedule, employees, contracts, shift_id_to_index)
+    total_penalty += penalize_max_working_weekends(schedule, contracts, employees, shift_id_to_index, start_date)
 
-    # total_penalty += penalize_max_working_weekends(schedule, contracts, employees, shift_id_to_index, start_date)
-
-    # total_penalty += penalize_shift_off_requests(schedule, off_reqs, employees, shift_id_to_index, start_date)
+    total_penalty += penalize_shift_off_requests(schedule, off_reqs, employees, shift_id_to_index, start_date)
 
     total_penalty += penalize_shift_on_requests(schedule, on_reqs, employees, shift_id_to_index, start_date)
 
-    # total_penalty += hard_cover_fulfillment(schedule, cover, start_date, shift_id_to_index, cover_weights, n_days)
+    total_penalty += hard_cover_fulfillment(schedule, cover, start_date, shift_id_to_index, cover_weights, n_days)
 
-    # total_penalty += hard_max_shifts_from_contract_matrix(schedule, employees, contracts, employee_id_to_index, shift_off_index=shift_id_to_index["OFF"])
+    total_penalty += hard_max_shifts_from_contract_matrix(schedule, employees, contracts, employee_id_to_index, shift_off_index=shift_id_to_index["OFF"])
 
-    # total_penalty += hard_check_bounded_shifts_in_region(
-    #     schedule_matrix=schedule,
-    #     employees=employees,
-    #     contracts=contracts,
-    #     employee_id_to_index=employee_id_to_index,
-    #     shift_off_index=shift_id_to_index["OFF"],
-    #     n_days=n_days,
-    # )
+    total_penalty += hard_check_bounded_shifts_in_region(
+        schedule_matrix=schedule,
+        employees=employees,
+        contracts=contracts,
+        employee_id_to_index=employee_id_to_index,
+        shift_off_index=shift_id_to_index["OFF"],
+        n_days=n_days,
+    )
 
 
     return total_penalty
