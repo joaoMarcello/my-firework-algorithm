@@ -345,3 +345,139 @@ def penalize_pattern(schedule_str, pattern, penalty_per_occurrence=10000):
     """
     return count_pattern_overlapping(schedule_str, pattern) * penalty_per_occurrence
 
+def penalize_late_shift_series(schedule_str_list, penalty_weight=10):
+    """
+    Penaliza sequências de turnos 'L' fora do intervalo [2, 3] para todos os funcionários.
+
+    Args:
+        schedule_str_list (list of str): Lista de strings com a escala de cada funcionário
+        penalty_weight (int): Peso base da penalização (default: 10)
+
+    Returns:
+        int: Penalidade total
+    """
+    total_penalty = 0
+
+    for schedule_str in schedule_str_list:
+        # Encontra todas as sequências consecutivas de 'L'
+        for match in re.finditer(r'L+', schedule_str):
+            length = len(match.group())
+
+            if length < 2:
+                diff = 2 - length
+            elif length > 3:
+                diff = length - 3
+            else:
+                continue  # Está dentro do intervalo permitido
+
+            total_penalty += penalty_weight * (diff ** 2)
+
+    return total_penalty
+
+
+def penalize_early_shift_series(schedule_str_list, penalty_weight=10):
+    """
+    Penaliza sequências de turnos 'E' fora do intervalo [2, 3] para todos os funcionários.
+
+    Args:
+        schedule_str_list (list of str): Lista de strings com a escala de cada funcionário
+        penalty_weight (int): Peso base da penalização (default: 10)
+
+    Returns:
+        int: Penalidade total
+    """
+    total_penalty = 0
+
+    for schedule_str in schedule_str_list:
+        # Encontra todas as sequências consecutivas de 'E'
+        for match in re.finditer(r'E+', schedule_str):
+            length = len(match.group())
+
+            if length < 2:
+                diff = 2 - length
+            elif length > 3:
+                diff = length - 3
+            else:
+                continue  # Dentro do intervalo permitido
+
+            total_penalty += penalty_weight * (diff ** 2)
+
+    return total_penalty
+
+def penalize_insufficient_rest(schedule_str_list, penalty_per_occurrence=100):
+    """
+    Penaliza casos em que há apenas 1 dia de descanso '-' após uma sequência de D, E ou L.
+
+    Args:
+        schedule_str_list (list of str): Lista de strings com a escala de cada funcionário.
+        penalty_per_occurrence (int): Penalidade por ocorrência de descanso insuficiente (default: 100)
+
+    Returns:
+        int: Penalidade total.
+    """
+    total_penalty = 0
+
+    # Padrão: sequência de D, E ou L seguida de exatamente 1 '-'
+    pattern = r'[DEL]+-(?!-)'
+
+    for schedule_str in schedule_str_list:
+        matches = re.findall(pattern, schedule_str)
+        total_penalty += len(matches) * penalty_per_occurrence
+
+    return total_penalty
+
+def penalize_standalone_shifts(schedule_str_list, penalty_per_occurrence=1000):
+    """
+    Penaliza turnos isolados: um único dia de trabalho entre dois dias de folga.
+
+    Args:
+        schedule_str_list (list of str): Lista de strings com a escala de cada funcionário.
+        penalty_per_occurrence (int): Penalidade por turno isolado (default: 1000)
+
+    Returns:
+        int: Penalidade total
+    """
+    total_penalty = 0
+
+    # Padrão: '-' seguido por um turno (qualquer letra) seguido por '-'
+    # Ex: '-D-', '-E-', '-N-' etc.
+    pattern = r'-(?!-)([A-Z])-(?!-)'
+
+    for schedule_str in schedule_str_list:
+        matches = re.findall(pattern, schedule_str)
+        total_penalty += len(matches) * penalty_per_occurrence
+
+    return total_penalty
+
+
+def penalize_weekend_pattern(schedule_str_list, start_date, penalty=1000):
+    total_penalty = 0
+
+    for sched in schedule_str_list:
+        n_days = len(sched)
+        for i in range(n_days - 2):
+            current_date = start_date + timedelta(days=i)
+            if current_date.strftime('%A') != 'Friday':
+                continue
+
+            fri_shift = sched[i]
+            sat_shift = sched[i + 1]
+            sun_shift = sched[i + 2]
+
+            # Conta conforme regra
+            count = 0
+            if fri_shift == 'N':
+                count += 1
+            if sat_shift != '-':
+                count += 1
+            if sun_shift in ('E', 'D', 'L'):
+                count += 1
+
+            if count == 1:
+                total_penalty += penalty
+
+    return total_penalty
+
+
+
+
