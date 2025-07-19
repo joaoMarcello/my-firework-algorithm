@@ -31,7 +31,7 @@ def fitness(solution):
     total_penalty += penalize_insufficient_rest(schedule_str_list)
     total_penalty += penalize_standalone_shifts(schedule_str_list)
 
-    total_penalty += penalize_weekend_pattern(schedule_str_list, start_date)
+    total_penalty += penalize_weekend_pattern(schedule, start_date, shift_id_to_index)
     #==================================================================
 
     total_penalty += penalize_min_consecutive_free_days_all(schedule, shift_id_to_index["OFF"], employees, contracts)

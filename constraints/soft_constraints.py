@@ -450,33 +450,41 @@ def penalize_standalone_shifts(schedule_str_list, penalty_per_occurrence=1000):
     return total_penalty
 
 
-def penalize_weekend_pattern(schedule_str_list, start_date, penalty=1000):
+def penalize_weekend_pattern(schedule, start_date, shift_id_to_index, penalty=1000):
     total_penalty = 0
 
-    for sched in schedule_str_list:
-        n_days = len(sched)
-        for i in range(n_days - 2):
-            current_date = start_date + timedelta(days=i)
-            if current_date.strftime('%A') != 'Friday':
+    n_employees, n_days = schedule.shape
+
+    # Mapas de turnos usados na regra
+    off_idx = shift_id_to_index.get("OFF")
+    night_idx = shift_id_to_index.get("N")
+    early_idx = shift_id_to_index.get("E")
+    day_idx = shift_id_to_index.get("D")
+    late_idx = shift_id_to_index.get("L")
+
+    for emp in range(n_employees):
+        for day_idx_iter in range(n_days - 2):  # para pegar sextas, sábados e domingos completos
+            current_date = start_date + timedelta(days=day_idx_iter)
+            if current_date.weekday() != 4:  # sexta-feira = 4
                 continue
 
-            fri_shift = sched[i]
-            sat_shift = sched[i + 1]
-            sun_shift = sched[i + 2]
+            fri_shift = schedule[emp, day_idx_iter]
+            sat_shift = schedule[emp, day_idx_iter + 1]
+            sun_shift = schedule[emp, day_idx_iter + 2]
 
-            # Conta conforme regra
             count = 0
-            if fri_shift == 'N':
+            if fri_shift == night_idx:
                 count += 1
-            if sat_shift != '-':
+            if sat_shift != off_idx:
                 count += 1
-            if sun_shift in ('E', 'D', 'L'):
+            if sun_shift in (early_idx, day_idx, late_idx):
                 count += 1
 
             if count == 1:
                 total_penalty += penalty
 
     return total_penalty
+
 
 
 
