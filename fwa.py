@@ -3,7 +3,7 @@ from datetime import timedelta
 import json
 import os
 import random
-
+import time
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -265,19 +265,49 @@ class FWA:
         self.history.append(self.best_value)
 
 
-    def run(self, verbose=False, log_freq=10):
-        # self.init_fireworks()
-        self.init_fireworks_smart(smart_ratio=0.5)
-        # self.init_fireworks_smart_v2()
+    # def run(self, verbose=False, log_freq=10):
+    #     # self.init_fireworks()
+    #     self.init_fireworks_smart(smart_ratio=0.5)
+    #     # self.init_fireworks_smart_v2()
 
+    #     self.current_iter = 0
+    #     pbar = trange(self.max_iter, desc="FWA", dynamic_ncols=True)
+    #     for i in pbar:
+    #         self.iter()
+    #         self.current_iter += 1
+    #         pbar.set_description(f"FWA F={self.best_value:.0f} - A_i={self.__A_i:.8f} - A_dyn={self.__A_dynamic:.2f}")
+    #         if verbose and (i % log_freq == 0 or i == self.max_iter - 1):
+    #             print(f"Iter {i}: best = {self.best_value}")
+
+    def run(self, verbose=False, log_freq=10, time_limit_minutes=None):
+        self.init_fireworks_smart(smart_ratio=0.5)
         self.current_iter = 0
+
+        max_seconds = time_limit_minutes * 60 if time_limit_minutes else None
+        start_time = time.time()
+
         pbar = trange(self.max_iter, desc="FWA", dynamic_ncols=True)
         for i in pbar:
+            elapsed_time = time.time() - start_time
+
+            # Interrompe se tempo excedido
+            if max_seconds is not None and elapsed_time >= max_seconds:
+                print(f"\nTempo-limite atingido: {elapsed_time / 60:.2f} minutos.")
+                break
+
             self.iter()
             self.current_iter += 1
-            pbar.set_description(f"FWA F={self.best_value:.0f} - A_i={self.__A_i:.8f} - A_dyn={self.__A_dynamic:.2f}")
+
+            pbar.set_description(
+                f"FWA F={self.best_value:.0f} - A_i={self.__A_i:.8f} - A_dyn={self.__A_dynamic:.2f}"
+            )
+
             if verbose and (i % log_freq == 0 or i == self.max_iter - 1):
                 print(f"Iter {i}: best = {self.best_value}")
+
+        total_minutes = (time.time() - start_time) / 60
+        print(f"Execução finalizada após {self.current_iter} iterações em {total_minutes:.2f} minutos.")
+
 
     def get_dynamic_amplitude(self):
         initial = self.A_hat
