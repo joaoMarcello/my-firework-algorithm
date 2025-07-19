@@ -1851,6 +1851,7 @@
 		<PrefUnderStaffing>10000</PrefUnderStaffing>
 	</CoverWeights>
 
+	<ShiftOnRequests>
 		<ShiftOn weight="100">
 			<ShiftTypeID>D</ShiftTypeID>
 			<EmployeeID>1</EmployeeID>
