@@ -6,7 +6,7 @@ import numpy as np
 
 from fwa import FWA
 from fwa_discrete import DiscreteFWA
-from utils import load_data
+from utils import load_data, convert_schedule_to_str
 from constraints.hard_constraints import *
 from constraints.soft_constraints import *
 
@@ -16,7 +16,12 @@ random.seed(SEED)
 
 def fitness(solution):
     schedule = np.rint(solution).astype(int).reshape((n_employees, n_days))
+    schedule_str_list = convert_schedule_to_str(schedule, shift_ids)
+    schedule_str = ''.join(schedule_str_list)
+
     total_penalty = 0
+
+    total_penalty += penalize_pattern(schedule_str, 'NE')
 
     total_penalty += penalize_min_consecutive_free_days_all(schedule, shift_id_to_index["OFF"], employees, contracts)
 
