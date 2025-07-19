@@ -538,11 +538,14 @@ class FWA:
     def save_excel(self, filename="best_schedule.xlsx", shift_colors=None):
         from openpyxl import load_workbook
         from openpyxl.styles import PatternFill
-        
+        import calendar  # Para abreviações dos dias da semana
+
         if self.best_solution is None:
             raise ValueError("Nenhuma solução encontrada para salvar.")
         if not hasattr(self, "n_employees") or not hasattr(self, "n_days") or not hasattr(self, "shift_ids"):
             raise ValueError("Contexto do problema (n_employees, n_days, shift_ids) não configurado.")
+        if not hasattr(self, "start_date"):
+            raise ValueError("Atributo start_date não configurado na classe.")
 
         # Cores padrão baseadas no XML do dataset (cores convertidas para HEX)
         default_shift_colors = {
@@ -578,8 +581,17 @@ class FWA:
         wb = load_workbook(filename)
         ws = wb.active
 
-        # Aplica cor nas células conforme shift_colors
-        for row_idx in range(2, 2 + self.n_employees):
+        # Inserir uma linha após o cabeçalho com abreviação do dia da semana
+        # A linha 1 é o cabeçalho (Day 1, Day 2, ...), inserimos na linha 2 os dias da semana
+        ws.insert_rows(2)
+
+        for col_idx in range(2, 2 + self.n_days):
+            current_date = self.start_date + timedelta(days=col_idx - 2)  # col_idx=2 corresponde a dia 0
+            day_abbr = calendar.day_abbr[current_date.weekday()]  # Ex: Mon, Tue, Wed
+            ws.cell(row=2, column=col_idx, value=day_abbr)
+
+        # Aplicar cor nas células conforme shift_colors (dados começam na linha 3 agora)
+        for row_idx in range(3, 3 + self.n_employees):
             for col_idx in range(2, 2 + self.n_days):
                 cell = ws.cell(row=row_idx, column=col_idx)
                 label = cell.value
