@@ -87,7 +87,7 @@ def load_data(xml_path: str ='ORTEC01.xml'):
     # Se o turno "OFF" não estiver nos dados, adicionamos.
     if "OFF" not in shifts:
         shifts["OFF"] = {
-            "Label": "OFF",
+            "Label": "-",
             "Name": "-",
             "StartTime": None,
             "EndTime": None,
@@ -247,3 +247,22 @@ def load_data(xml_path: str ='ORTEC01.xml'):
         "end_date": end_date,
         "cover_weights" : cover_weights,
     }
+
+def convert_schedule_to_str(schedule, shift_ids):
+    """
+    Converte uma matriz (n_employees x n_days) com índices inteiros para lista de strings
+    com os respectivos códigos de turno, substituindo 'OFF' por '-'.
+
+    Parâmetros:
+        schedule (ndarray): matriz com shape (n_employees, n_days) de inteiros
+        shift_ids (list[str]): lista de IDs de turno em ordem dos índices, ex: ['E', 'D', 'L', 'N', 'OFF']
+
+    Retorna:
+        list[str]: Lista com strings por funcionário, ex: ['E-D--L', 'N--DE--', ...]
+    """
+    # Substitui 'OFF' por '-' no mapeamento
+    idx_to_symbol = [s if s != 'OFF' else '-' for s in shift_ids]
+
+    return [''.join(idx_to_symbol[idx] for idx in row) for row in schedule]
+
+
