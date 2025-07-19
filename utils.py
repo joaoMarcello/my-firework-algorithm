@@ -201,30 +201,31 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             "Date": date,
             "Weight": weight
         })
-        
-    # Pedidos de turno desejado (ShiftOn)
-    for req in root.find("ShiftOnRequests").findall("ShiftOn"):
-        emp_id = req.findtext("EmployeeID")
-        shift_type = req.findtext("ShiftTypeID") or req.findtext("Shift")
-        weight = int(req.attrib.get("weight", 1))
+    
+    if root.find("ShiftOnRequests") is not None:
+        # Pedidos de turno desejado (ShiftOn)
+        for req in root.find("ShiftOnRequests").findall("ShiftOn"):
+            emp_id = req.findtext("EmployeeID")
+            shift_type = req.findtext("ShiftTypeID") or req.findtext("Shift")
+            weight = int(req.attrib.get("weight", 1))
 
-        # Tenta obter a data completa primeiro
-        date_str = req.findtext("Date")
-        if date_str:
-            date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        else:
-            day_number = req.findtext("Day")
-            if day_number is None:
-                continue  # ignora se não houver nem Date nem Day
-            day_index = int(day_number)
-            date = start_date + timedelta(days=day_index)
+            # Tenta obter a data completa primeiro
+            date_str = req.findtext("Date")
+            if date_str:
+                date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            else:
+                day_number = req.findtext("Day")
+                if day_number is None:
+                    continue  # ignora se não houver nem Date nem Day
+                day_index = int(day_number)
+                date = start_date + timedelta(days=day_index)
 
-        shift_on_requests.append({
-            "EmployeeID": emp_id,
-            "ShiftTypeID": shift_type,
-            "Date": date,
-            "Weight": weight
-        })
+            shift_on_requests.append({
+                "EmployeeID": emp_id,
+                "ShiftTypeID": shift_type,
+                "Date": date,
+                "Weight": weight
+            })
 
     # CoverWeights
     cover_weights_node = root.find("CoverWeights")
