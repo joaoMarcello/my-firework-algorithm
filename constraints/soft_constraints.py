@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 from datetime import timedelta
 
@@ -323,4 +325,23 @@ def penalize_shift_on_requests(schedule, shift_on_requests, employees, shift_id_
     return penalty
 
 
+def count_pattern_overlapping(sequence, pattern):
+    # re.escape garante que caracteres especiais no pattern sejam tratados literalmente
+    regex = f'(?={re.escape(pattern)})'  
+    matches = re.findall(regex, sequence)
+    return len(matches)
+
+def penalize_pattern(schedule_str, pattern, penalty_per_occurrence=10000):
+    """
+    Penaliza cada ocorrência de um padrão específico na string da escala.
+
+    Args:
+        schedule_str (str): Escala em formato string única (ex: 'N-LL-ED-ND...')
+        pattern (str): Padrão de turnos a ser penalizado (ex: 'NE')
+        penalty_per_occurrence (int): Penalidade por ocorrência (default: 10000)
+
+    Returns:
+        int: Penalidade total
+    """
+    return count_pattern_overlapping(schedule_str, pattern) * penalty_per_occurrence
 
