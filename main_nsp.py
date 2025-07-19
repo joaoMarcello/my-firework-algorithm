@@ -157,7 +157,7 @@ if __name__ == '__main__':
                             employee_id_to_index=employee_id_to_index,
                             cover_requirements=cover)
 
-    fwa.run()
+    fwa.run(time_limit_minutes=60)
     fwa.save_to_disc(path=args.save_file + '.json')
 
     print("Melhor valor encontrado:", fwa.best_value)
