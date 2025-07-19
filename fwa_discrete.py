@@ -60,7 +60,10 @@ class DiscreteFWA(FWA):
             spark = np.copy(fw)
             z = np.random.randint(1, self.dim + 1)
             idx = np.random.choice(self.dim, z, replace=False)
-            g = int(round(norm.rvs(loc=1, scale=1)))
+            # g = int(round(norm.rvs(loc=1, scale=1)))
+            
+            g = max(1, abs(int(round(norm.rvs(loc=1, scale=1))))) * np.random.choice([-1, 1])
+            
             for k in idx:
                 spark[k] = int(round(spark[k] * g))
                 spark[k] = int(round(self.clip(spark[k], self.bounds[k])))
