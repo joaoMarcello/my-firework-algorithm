@@ -1,7 +1,9 @@
+from collections import defaultdict
 from datetime import timedelta
 import json
 import os
 import random
+
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,7 +44,7 @@ class FWA:
         self.J_hat = J_hat
         self.__A_dynamic = self.A_hat
 
-    def set_problem_context(self, start_date, n_days, n_employees, shift_id_to_index, shift_ids, shift_on_request, employee_id_to_index):
+    def set_problem_context(self, start_date, n_days, n_employees, shift_id_to_index, shift_ids, shift_on_request, employee_id_to_index, cover_requirements):
         self.start_date = start_date
         self.n_days = n_days
         self.n_employees = n_employees
@@ -50,6 +52,7 @@ class FWA:
         self.shift_ids = shift_ids
         self.shift_on_requests = shift_on_request
         self.employee_id_to_index = employee_id_to_index
+        self.cover_requirements = cover_requirements
 
     
     def apply_joy_factor(self):
@@ -119,8 +122,6 @@ class FWA:
             ):
                 schedule[emp_id, day] = shift_idx
 
-
-
     def init_fireworks_smart(self, smart_ratio=0.7):
         assert hasattr(self, "n_employees") and hasattr(self, "n_days"), \
             "Use set_problem_context() antes de usar init_fireworks_smart()."
@@ -170,10 +171,104 @@ class FWA:
         self.best_value = self.func(self.best_solution)
         self.history.append(self.best_value)
 
+    def shuffle_employee_subsequence(self, solution, max_block_size=7):
+        """
+        Para um empregado aleatório, embaralha um bloco consecutivo de turnos dentro do schedule.
+
+        Args:
+            solution: np.array (n_employees, n_days)
+            max_block_size: tamanho máximo do bloco que pode ser embaralhado
+        """
+        emp = np.random.randint(0, self.n_employees)
+        block_size = np.random.randint(2, min(max_block_size, self.n_days) + 1)
+        start_day = np.random.randint(0, self.n_days - block_size + 1)
+        end_day = start_day + block_size
+
+        subseq = solution[emp, start_day:end_day]
+        np.random.shuffle(subseq)
+        solution[emp, start_day:end_day] = subseq
+
+    def random_mutation(self, solution, mutation_rate=0.05):
+        """
+        Aplica mutação aleatória em alguns turnos da solução.
+
+        Args:
+            solution: np.array (n_employees, n_days)
+            mutation_rate: probabilidade de mutar cada célula
+        """
+        for emp in range(self.n_employees):
+            for day in range(self.n_days):
+                if np.random.rand() < mutation_rate:
+                    # Escolhe turno aleatório válido diferente do atual
+                    current_shift = solution[emp, day]
+                    possible_shifts = list(range(len(self.shift_ids)))
+                    possible_shifts.remove(current_shift)
+
+                    new_shift = np.random.choice(possible_shifts)
+                    solution[emp, day] = new_shift
+
+    def generate_initial_solution_cover(self, n_swaps=100):
+        """
+        Gera uma solução inicial tentando cobrir os turnos obrigatórios (cover_requirements)
+        e depois aumenta diversidade trocando turnos entre empregados aleatoriamente.
+
+        Args:
+            n_swaps (int): número de trocas aleatórias a realizar para diversificar a solução.
+
+        Retorna:
+            np.array shape (n_employees, n_days) com índices dos turnos.
+        """
+        solution = np.full((self.n_employees, self.n_days), self.shift_id_to_index['OFF'], dtype=int)
+        emp_order = np.random.permutation(self.n_employees)
+        day_order = np.random.permutation(self.n_days)
+
+        # Preencher para cobrir as demandas
+        for day_offset in day_order:
+            current_date = self.start_date + timedelta(days=int(day_offset))
+            day_name = current_date.strftime("%A")
+
+            for shift_id, required in self.cover_requirements.get(day_name, {}).items():
+                shift_index = self.shift_id_to_index[shift_id]
+
+                assigned = 0
+                for emp in emp_order:
+                    if solution[emp, day_offset] == self.shift_id_to_index['OFF']:
+                        solution[emp, day_offset] = shift_index
+                        assigned += 1
+                        if assigned == required:
+                            break
+
+        # Aumenta a diversidade com trocas aleatórias entre empregados/dias
+        for _ in range(n_swaps):
+            emp1, emp2 = np.random.choice(self.n_employees, size=2, replace=False)
+            day1, day2 = np.random.choice(self.n_days, size=2, replace=False)
+
+            # Troca os turnos entre os dois empregados nos dias escolhidos
+            temp = solution[emp1, day1]
+            solution[emp1, day1] = solution[emp2, day2]
+            solution[emp2, day2] = temp
+
+        return solution
+
+    
+    def init_fireworks_smart_v2(self):
+        self.fireworks = []
+        for i in range(self.n):
+            schedule = self.generate_initial_solution_cover()
+            self.shuffle_employee_subsequence(schedule)
+            self.random_mutation(schedule)
+            self.apply_shift_on_requests(schedule)
+            self.fireworks.append(schedule.flatten())
+        
+        self.best_solution = min(self.fireworks, key=self.func)
+        self.best_value = self.func(self.best_solution)
+        self.history.append(self.best_value)
+
 
     def run(self, verbose=False, log_freq=10):
         # self.init_fireworks()
         self.init_fireworks_smart(smart_ratio=0.5)
+        # self.init_fireworks_smart_v2()
 
         self.current_iter = 0
         pbar = trange(self.max_iter, desc="FWA", dynamic_ncols=True)
