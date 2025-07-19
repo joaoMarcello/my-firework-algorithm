@@ -178,33 +178,36 @@ def load_data(xml_path: str ='ORTEC01.xml'):
             cover_requirements[day][shift_id] = preferred
 
     # Pedidos de folga (ShiftOff)
-    for req in root.find("ShiftOffRequests").findall("ShiftOff"):
-        emp_id = req.findtext("EmployeeID")
-        shift_type = req.findtext("ShiftTypeID") or req.findtext("Shift")  # usa ShiftTypeID se tiver, senão Shift
-        weight = int(req.attrib.get("weight", 1))
+    shift_off_requests_node = root.find("ShiftOffRequests")
+    if shift_off_requests_node is not None:
+        for req in shift_off_requests_node.findall("ShiftOff"):
+            emp_id = req.findtext("EmployeeID")
+            shift_type = req.findtext("ShiftTypeID") or req.findtext("Shift")  # usa ShiftTypeID se tiver, senão Shift
+            weight = int(req.attrib.get("weight", 1))
 
-        # Tenta obter a data completa primeiro
-        date_str = req.findtext("Date")
-        if date_str:
-            date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        else:
-            # Se não tiver Date, usa Day (inteiro) a partir da start_date
-            day_number = req.findtext("Day")
-            if day_number is None:
-                continue  # ignora se não houver nem Date nem Day
-            day_index = int(day_number)
-            date = start_date + timedelta(days=day_index)
+            # Tenta obter a data completa primeira
+            date_str = req.findtext("Date")
+            if date_str:
+                date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            else:
+                # Se não tiver Date, usa Day (inteiro) a partir da start_date
+                day_number = req.findtext("Day")
+                if day_number is None:
+                    continue  # ignora se não houver nem Date nem Day
+                day_index = int(day_number)
+                date = start_date + timedelta(days=day_index)
 
-        shift_off_requests.append({
-            "EmployeeID": emp_id,
-            "ShiftTypeID": shift_type,
-            "Date": date,
-            "Weight": weight
-        })
-    
-    if root.find("ShiftOnRequests") is not None:
-        # Pedidos de turno desejado (ShiftOn)
-        for req in root.find("ShiftOnRequests").findall("ShiftOn"):
+            shift_off_requests.append({
+                "EmployeeID": emp_id,
+                "ShiftTypeID": shift_type,
+                "Date": date,
+                "Weight": weight
+            })
+        
+    # Pedidos de turno desejado (ShiftOn)
+    shift_on_requests_node = root.find("ShiftOnRequests")
+    if shift_on_requests_node is not None:
+        for req in shift_on_requests_node.findall("ShiftOn"):
             emp_id = req.findtext("EmployeeID")
             shift_type = req.findtext("ShiftTypeID") or req.findtext("Shift")
             weight = int(req.attrib.get("weight", 1))
