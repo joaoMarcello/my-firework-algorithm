@@ -1850,6 +1850,7 @@
 		<PrefOverStaffing>10000</PrefOverStaffing>
 		<PrefUnderStaffing>10000</PrefUnderStaffing>
 	</CoverWeights>
+	<ShiftOffRequests>
 		<ShiftOff weight="10000">
 			<ShiftTypeID>L</ShiftTypeID>
 			<EmployeeID>13</EmployeeID>
