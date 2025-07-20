@@ -24,8 +24,8 @@
 #   --fwa_select_mode roulette
 
 python main_nsp.py \
-  --xml_path data/ORTEC02.xml \
-  --save_file results_valendo_v2_ortec02/fwa_nsp_run_1_long_run \
+  --xml_path data/ORTEC03.xml \
+  --save_file results_valendo_v2_ortec03/fwa_nsp_run_1_long_run \
   --fwa_n 20 \
   --fwa_m 70 \
   --fwa_a 0 \
