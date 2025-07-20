@@ -24,8 +24,8 @@
 #   --fwa_select_mode roulette
 
 python main_nsp.py \
-  --xml_path data/ORTEC05.xml \
-  --save_file results_valendo_discrete_ortec_9/fwa_nsp_run_09 \
+  --xml_path data/ORTEC11.xml \
+  --save_file results_valendo_discrete_ortec_luis_v2_2_10000/fwa_nsp_run_11 \
   --fwa_n 20 \
   --fwa_m 70 \
   --fwa_a 0 \
@@ -34,7 +34,7 @@ python main_nsp.py \
   --fwa_m_hat 5 \
   --fwa_j 0 \
   --fwa_j_hat 0 \
-  --fwa_max_iter 5000 \
+  --fwa_max_iter 10000 \
   --fwa_select_mode roulette
 
 # # Pausar o terminal após a execução
